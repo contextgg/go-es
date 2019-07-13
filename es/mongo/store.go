@@ -219,3 +219,10 @@ func (c *Client) Load(ctx context.Context, id string, typeName string, fromVersi
 
 	return events, nil
 }
+
+// Close underlying connection
+func (c *Client) Close() {
+	if c.session != nil {
+		c.session.Close()
+	}
+}

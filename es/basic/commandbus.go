@@ -25,3 +25,7 @@ func (b *commandBus) HandleCommand(ctx context.Context, cmd es.Command) error {
 	}
 	return handler.HandleCommand(ctx, cmd)
 }
+
+// Close underlying connection
+func (b *commandBus) Close() {
+}

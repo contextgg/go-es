@@ -17,3 +17,7 @@ type eventBus struct {
 func (b *eventBus) PublishEvent(context.Context, *es.Event) error {
 	return nil
 }
+
+// Close underlying connection
+func (b *eventBus) Close() {
+}

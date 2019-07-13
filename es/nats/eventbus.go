@@ -2,53 +2,75 @@ package nats
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
+	"fmt"
+	"log"
+	"time"
 
 	"github.com/contextgg/go-es/es"
 
-	nats "github.com/nats-io/go-nats"
+	nats "github.com/nats-io/nats.go"
 )
 
 // Client nats
 type Client struct {
 	namespace string
-	options   nats.Options
+	conn      *nats.Conn
+}
+
+func retryConnect(uri string, max int) (*nats.Conn, error) {
+	count := 0
+	for {
+		client, err := nats.Connect(uri, nats.Name("es-publisher"), nats.MaxReconnects(-1))
+		if client != nil && err == nil {
+			return client, nil
+		}
+
+		count = count + 1
+		if count >= max {
+			return nil, fmt.Errorf("Could not connect to server after %d retries", count)
+		}
+
+		log.Println("Wait for brokers to come up.. ", uri)
+		time.Sleep(3 * time.Second)
+	}
+
 }
 
 // NewClient returns the basic client to access to nats
-func NewClient(urls string, useTLS bool, namespace string) (es.EventBus, error) {
-	opts := nats.DefaultOptions
-	opts.Secure = useTLS
-	opts.Servers = strings.Split(urls, ",")
-
-	for i, s := range opts.Servers {
-		opts.Servers[i] = strings.Trim(s, " ")
+func NewClient(uri string, namespace string) (es.EventBus, error) {
+	conn, err := retryConnect(uri, 5)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Client{
 		namespace,
-		opts,
+		conn,
 	}, nil
 }
 
 // PublishEvent via nats
 func (c *Client) PublishEvent(ctx context.Context, event *es.Event) error {
-	nc, err := c.options.Connect()
-	if err != nil {
-		return err
-	}
-	defer nc.Close()
-
-	blob, err := json.Marshal(event)
+	ec, err := nats.NewEncodedConn(c.conn, nats.JSON_ENCODER)
 	if err != nil {
 		return err
 	}
 
 	subj := c.namespace + "." + event.AggregateType
-	nc.Publish(subj, blob)
-	nc.Flush()
+	if err := ec.Publish(subj, event); err != nil {
+		return err
+	}
 
-	err = nc.LastError()
-	return err
+	if err := ec.Flush(); err != nil {
+		return err
+	}
+
+	return ec.LastError()
+}
+
+// Close underlying connection
+func (c *Client) Close() {
+	if c.conn != nil {
+		c.conn.Close()
+	}
 }

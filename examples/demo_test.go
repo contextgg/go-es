@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"testing"
+	"time"
 
 	"github.com/contextgg/go-es/config"
 	"github.com/contextgg/go-es/es"
@@ -64,10 +65,13 @@ func TestStuff(t *testing.T) {
 	// 	&LoggedIn{},
 	// 	&LoggedOut{},
 	// )
+	// eventbus := config.Nats("nats://localhost:4222", "identity-auth")
 
-	bus, err := config.NewCommandBus(
+	cli, err := config.NewClient(
 		config.LocalStore(),
+		// store,
 		config.LocalPublisher(),
+		// eventbus,
 		config.WireAggregate(
 			&Auth{},
 			&Login{},
@@ -78,6 +82,9 @@ func TestStuff(t *testing.T) {
 		t.Error(err)
 		return
 	}
+	defer cli.Close()
+
+	bus := cli.CommandBus
 
 	ctx := context.Background()
 
@@ -95,4 +102,6 @@ func TestStuff(t *testing.T) {
 	if err := bus.HandleCommand(ctx, cmd2); err != nil {
 		log.Fatal(err)
 	}
+
+	time.Sleep(1)
 }

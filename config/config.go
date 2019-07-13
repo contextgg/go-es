@@ -16,8 +16,28 @@ type EventBus func() (es.EventBus, error)
 // EventStore returns an eventhus.EventStore impl
 type EventStore func() (es.EventStore, error)
 
-// NewCommandBus will create a command bus from all our config
-func NewCommandBus(storeFactory EventStore, eventBusFactory EventBus, commandConfigs ...CommandConfig) (es.CommandBus, error) {
+// Client has all the info / services for our ES platform
+type Client struct {
+	EventStore es.EventStore
+	EventBus   es.EventBus
+	CommandBus es.CommandBus
+}
+
+// Close all the underlying services
+func (c *Client) Close() {
+	if c.CommandBus != nil {
+		c.CommandBus.Close()
+	}
+	if c.EventBus != nil {
+		c.EventBus.Close()
+	}
+	if c.EventStore != nil {
+		c.EventStore.Close()
+	}
+}
+
+// NewClient will a client for our es pattern
+func NewClient(storeFactory EventStore, eventBusFactory EventBus, commandConfigs ...CommandConfig) (*Client, error) {
 	store, err := storeFactory()
 	if err != nil {
 		return nil, err
@@ -32,7 +52,13 @@ func NewCommandBus(storeFactory EventStore, eventBusFactory EventBus, commandCon
 	for _, configs := range commandConfigs {
 		configs(store, eventBus, registry)
 	}
-	return basic.NewCommandBus(registry), nil
+
+	client := &Client{
+		EventBus:   eventBus,
+		EventStore: store,
+		CommandBus: basic.NewCommandBus(registry),
+	}
+	return client, nil
 }
 
 // WireAggregate will connect a list of commands to an aggregate
@@ -62,9 +88,9 @@ func LocalPublisher() EventBus {
 }
 
 // Nats generates a Nats implementation of EventBus
-func Nats(urls string, useTLS bool, namespace string) EventBus {
+func Nats(uri string, namespace string) EventBus {
 	return func() (es.EventBus, error) {
-		return nats.NewClient(urls, useTLS, namespace)
+		return nats.NewClient(uri, namespace)
 	}
 }
 

@@ -6,4 +6,5 @@ import "context"
 type EventStore interface {
 	Save(context.Context, []*Event, int) error
 	Load(context.Context, string, string, int) ([]*Event, error)
+	Close()
 }

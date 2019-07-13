@@ -6,4 +6,5 @@ import "context"
 type EventBus interface {
 	// PublishEvent publishes the event on the bus.
 	PublishEvent(context.Context, *Event) error
+	Close()
 }

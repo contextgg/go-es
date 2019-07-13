@@ -54,3 +54,7 @@ func (b *eventStore) Load(ctx context.Context, id, typeName string, fromVersion 
 
 	return filteredEvents, nil
 }
+
+// Close underlying connection
+func (b *eventStore) Close() {
+}
