@@ -61,11 +61,7 @@ func (c *Client) PublishEvent(ctx context.Context, event *es.Event) error {
 		return err
 	}
 
-	if err := ec.Flush(); err != nil {
-		return err
-	}
-
-	return ec.LastError()
+	return nil
 }
 
 // Close underlying connection

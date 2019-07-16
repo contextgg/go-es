@@ -73,6 +73,13 @@ func WireAggregate(aggregate es.Aggregate, commands ...es.Command) CommandConfig
 	}
 }
 
+// WireCommand for creating a basic command handler
+func WireCommand(command es.Command, handler es.CommandHandler) CommandConfig {
+	return func(store es.EventStore, eventBus es.EventBus, registry es.CommandRegister) {
+		registry.Add(command, handler)
+	}
+}
+
 // LocalStore used for testing
 func LocalStore() EventStore {
 	return func() (es.EventStore, error) {
