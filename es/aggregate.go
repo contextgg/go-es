@@ -11,17 +11,25 @@ type Aggregate interface {
 	// Initialize the aggregate with id and type
 	Initialize(string, string)
 
+	// ID return the ID of the aggregate
+	GetID() string
+
+	// GetTypeName return the TypeBame of the aggregate
+	GetTypeName() string
+
 	// StoreEvent will create an event and store it
 	StoreEvent(interface{})
 
-	// Version returns the version of the aggregate.
-	Version() int
+	// GetVersion returns the version of the aggregate.
+	GetVersion() int
+
 	// Increment version increments the version of the aggregate. It should be
 	// called after an event has been successfully applied.
 	IncrementVersion()
 
 	// Events returns all uncommitted events that are not yet saved.
 	Events() []*Event
+
 	// ClearEvents clears all uncommitted events after saving.
 	ClearEvents()
 
@@ -34,34 +42,45 @@ type Aggregate interface {
 // NewBaseAggregate create new base aggregate
 func NewBaseAggregate(id string) *BaseAggregate {
 	return &BaseAggregate{
-		id: id,
+		ID: id,
 	}
 }
 
 // BaseAggregate to make our commands smaller
 type BaseAggregate struct {
-	id       string
-	typeName string
-	version  int
-	events   []*Event
+	ID       string `bson:"id"`
+	TypeName string `bson:"type_name"`
+	Version  int    `bson:"version"`
+
+	events []*Event
 }
 
 // Initialize the aggregate with id and type
 func (a *BaseAggregate) Initialize(id string, typeName string) {
-	a.id = id
-	a.typeName = typeName
+	a.ID = id
+	a.TypeName = typeName
+}
+
+// GetID of the aggregate
+func (a *BaseAggregate) GetID() string {
+	return a.ID
+}
+
+// GetTypeName of the aggregate
+func (a *BaseAggregate) GetTypeName() string {
+	return a.TypeName
 }
 
 // StoreEvent will add the event to a list which will be persisted later
 func (a *BaseAggregate) StoreEvent(data interface{}) {
-	v := a.Version() + len(a.events) + 1
+	v := a.GetVersion() + len(a.events) + 1
 	timestamp := GetTimestamp()
 	_, typeName := GetTypeName(data)
 	e := &Event{
 		Type:          typeName,
 		Timestamp:     timestamp,
-		AggregateID:   a.id,
-		AggregateType: a.typeName,
+		AggregateID:   a.ID,
+		AggregateType: a.TypeName,
 		Version:       v,
 		Data:          data,
 	}
@@ -69,15 +88,15 @@ func (a *BaseAggregate) StoreEvent(data interface{}) {
 	a.events = append(a.events, e)
 }
 
-// Version returns the version of the aggregate.
-func (a *BaseAggregate) Version() int {
-	return a.version
+// GetVersion returns the version of the aggregate.
+func (a *BaseAggregate) GetVersion() int {
+	return a.Version
 }
 
 // IncrementVersion increments the version of the aggregate. It should be
 // called after an event has been successfully applied.
 func (a *BaseAggregate) IncrementVersion() {
-	a.version = a.version + 1
+	a.Version = a.Version + 1
 }
 
 // Events returns all uncommitted events that are not yet saved.

@@ -8,19 +8,23 @@ import (
 )
 
 // CommandConfig should connect internally commands with an aggregate
-type CommandConfig func(es.EventStore, es.EventBus, es.CommandRegister)
+type CommandConfig func(es.EventStore, es.SnapshotStore, es.EventBus, es.CommandRegister)
 
-// EventBus returns an eventhus.EventBus impl
+// EventBus returns an es.EventBus impl
 type EventBus func() (es.EventBus, error)
 
-// EventStore returns an eventhus.EventStore impl
+// EventStore returns an es.EventStore impl
 type EventStore func() (es.EventStore, error)
+
+// SnapshotStore returns an es.SnapshotStore impl
+type SnapshotStore func() (es.SnapshotStore, error)
 
 // Client has all the info / services for our ES platform
 type Client struct {
-	EventStore es.EventStore
-	EventBus   es.EventBus
-	CommandBus es.CommandBus
+	EventStore    es.EventStore
+	SnapshotStore es.SnapshotStore
+	EventBus      es.EventBus
+	CommandBus    es.CommandBus
 }
 
 // Close all the underlying services
@@ -34,11 +38,19 @@ func (c *Client) Close() {
 	if c.EventStore != nil {
 		c.EventStore.Close()
 	}
+	if c.SnapshotStore != nil {
+		c.SnapshotStore.Close()
+	}
 }
 
 // NewClient will a client for our es pattern
-func NewClient(storeFactory EventStore, eventBusFactory EventBus, commandConfigs ...CommandConfig) (*Client, error) {
+func NewClient(storeFactory EventStore, snapshotFactory SnapshotStore, eventBusFactory EventBus, commandConfigs ...CommandConfig) (*Client, error) {
 	store, err := storeFactory()
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot, err := snapshotFactory()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +62,7 @@ func NewClient(storeFactory EventStore, eventBusFactory EventBus, commandConfigs
 
 	registry := es.NewCommandRegister()
 	for _, configs := range commandConfigs {
-		configs(store, eventBus, registry)
+		configs(store, snapshot, eventBus, registry)
 	}
 
 	client := &Client{
@@ -64,8 +76,8 @@ func NewClient(storeFactory EventStore, eventBusFactory EventBus, commandConfigs
 // WireAggregate will connect a list of commands to an aggregate
 func WireAggregate(aggregate es.Aggregate, commands ...es.Command) CommandConfig {
 	t, name := es.GetTypeName(aggregate)
-	return func(store es.EventStore, eventBus es.EventBus, registry es.CommandRegister) {
-		handler := basic.NewCommandHandler(t, name, store, eventBus)
+	return func(store es.EventStore, snapshot es.SnapshotStore, eventBus es.EventBus, registry es.CommandRegister) {
+		handler := basic.NewCommandHandler(t, name, store, snapshot, eventBus)
 
 		for _, cmd := range commands {
 			registry.Add(cmd, handler)
@@ -75,7 +87,7 @@ func WireAggregate(aggregate es.Aggregate, commands ...es.Command) CommandConfig
 
 // WireCommand for creating a basic command handler
 func WireCommand(command es.Command, handler es.CommandHandler) CommandConfig {
-	return func(store es.EventStore, eventBus es.EventBus, registry es.CommandRegister) {
+	return func(store es.EventStore, snapshot es.SnapshotStore, eventBus es.EventBus, registry es.CommandRegister) {
 		registry.Add(command, handler)
 	}
 }
@@ -84,6 +96,13 @@ func WireCommand(command es.Command, handler es.CommandHandler) CommandConfig {
 func LocalStore() EventStore {
 	return func() (es.EventStore, error) {
 		return basic.NewEventStore(), nil
+	}
+}
+
+// LocalSnapshot used for testing
+func LocalSnapshot() SnapshotStore {
+	return func() (es.SnapshotStore, error) {
+		return basic.NewSnapshotStore(), nil
 	}
 }
 
@@ -110,5 +129,12 @@ func Mongo(uri, db string, events ...interface{}) EventStore {
 
 	return func() (es.EventStore, error) {
 		return mongo.NewClient(uri, db, registry)
+	}
+}
+
+// MongoSnapshot generates a MongoDB implementation of SnapshotStore
+func MongoSnapshot(uri, db string, minDiff int) SnapshotStore {
+	return func() (es.SnapshotStore, error) {
+		return mongo.NewSnapshotClient(uri, db, minDiff)
 	}
 }

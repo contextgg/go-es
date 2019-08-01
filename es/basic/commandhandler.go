@@ -30,11 +30,12 @@ var (
 )
 
 // NewCommandHandler to handle aggregates
-func NewCommandHandler(aggregateType reflect.Type, aggregateName string, store es.EventStore, bus es.EventBus) es.CommandHandler {
+func NewCommandHandler(aggregateType reflect.Type, aggregateName string, store es.EventStore, snapshot es.SnapshotStore, bus es.EventBus) es.CommandHandler {
 	return &handler{
 		aggregateType: aggregateType,
 		aggregateName: aggregateName,
 		store:         store,
+		snapshot:      snapshot,
 		bus:           bus,
 	}
 }
@@ -44,6 +45,7 @@ type handler struct {
 	aggregateType reflect.Type
 	registry      es.EventRegister
 	store         es.EventStore
+	snapshot      es.SnapshotStore
 	bus           es.EventBus
 }
 
@@ -55,12 +57,12 @@ func (h *handler) HandleCommand(ctx context.Context, cmd es.Command) error {
 		Interface().(es.Aggregate)
 	aggregate.Initialize(id, h.aggregateName)
 
-	// TODO load up the snapshots
-	// if err := h.snapshot.Load(ctx, id, &aggregate); err != nil {
-	// 	return err
-	// }
+	// load snapshot to save time
+	if err := h.snapshot.Load(ctx, aggregate); err != nil {
+		return err
+	}
 
-	originalVersion := aggregate.Version()
+	originalVersion := aggregate.GetVersion()
 
 	// load up the events from the DB.
 	originalEvents, err := h.store.Load(ctx, id, h.aggregateName, originalVersion)
@@ -81,21 +83,20 @@ func (h *handler) HandleCommand(ctx context.Context, cmd es.Command) error {
 	if len(events) < 1 {
 		return nil
 	}
-	if err := h.store.Save(ctx, events, aggregate.Version()); err != nil {
+	if err := h.store.Save(ctx, events, aggregate.GetVersion()); err != nil {
 		return err
 	}
 	aggregate.ClearEvents()
 
-	// Apply the events in case the aggregate needs to be further used
-	// after this save. Currently it is not reused.
+	// Apply the events so we can save the aggregate
 	if err := h.applyEvents(ctx, aggregate, events); err != nil {
 		return err
 	}
 
-	// TODO save the snapshot!
-	// if err := h.snapshot.Save(ctx, aggregate); err != nil {
-	// 	return err
-	// }
+	// save the snapshot!
+	if err := h.snapshot.Save(ctx, originalVersion, aggregate); err != nil {
+		return err
+	}
 
 	for _, e := range events {
 		if err := h.bus.PublishEvent(ctx, e); err != nil {
