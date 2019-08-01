@@ -61,18 +61,18 @@ type Logout struct {
 }
 
 func TestStuff(t *testing.T) {
-	store := config.Mongo("mongodb://localhost:27017", "test",
-		&LoggedIn{},
-		&LoggedOut{},
-	)
-	snapshot := config.MongoSnapshot("mongodb://localhost:27017", "test", 0)
+	// store := config.Mongo("mongodb://localhost:27017", "test",
+	// 	&LoggedIn{},
+	// 	&LoggedOut{},
+	// )
+	// snapshot := config.MongoSnapshot("mongodb://localhost:27017", "test", 0)
 	// eventbus := config.Nats("nats://localhost:4222", "identity-auth")
 
 	cli, err := config.NewClient(
-		// config.LocalStore(),
-		store,
-		// config.LocalSnapshot(),
-		snapshot,
+		config.LocalStore(),
+		// store,
+		config.LocalSnapshot(),
+		// snapshot,
 		config.LocalPublisher(),
 		// eventbus,
 		config.WireAggregate(

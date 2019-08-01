@@ -80,17 +80,16 @@ func (h *handler) HandleCommand(ctx context.Context, cmd es.Command) error {
 
 	// now save it!.
 	events := aggregate.Events()
-	if len(events) < 1 {
-		return nil
-	}
-	if err := h.store.Save(ctx, events, aggregate.GetVersion()); err != nil {
-		return err
-	}
-	aggregate.ClearEvents()
+	if len(events) > 0 {
+		if err := h.store.Save(ctx, events, aggregate.GetVersion()); err != nil {
+			return err
+		}
+		aggregate.ClearEvents()
 
-	// Apply the events so we can save the aggregate
-	if err := h.applyEvents(ctx, aggregate, events); err != nil {
-		return err
+		// Apply the events so we can save the aggregate
+		if err := h.applyEvents(ctx, aggregate, events); err != nil {
+			return err
+		}
 	}
 
 	// save the snapshot!
