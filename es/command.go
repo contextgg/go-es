@@ -14,3 +14,13 @@ type BaseCommand struct {
 func (c *BaseCommand) GetAggregateID() string {
 	return c.AggregateID
 }
+
+// SetID so we can set the ID
+func (c *BaseCommand) SetID(id string) {
+	c.AggregateID = id
+}
+
+// SettableID so we can automatically set IDs in middlewares
+type SettableID interface {
+	SetID(string)
+}
