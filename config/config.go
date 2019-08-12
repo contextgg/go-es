@@ -74,10 +74,11 @@ func NewClient(storeFactory EventStore, snapshotFactory SnapshotStore, eventBusF
 }
 
 // WireAggregate will connect a list of commands to an aggregate
-func WireAggregate(aggregate es.Aggregate, commands ...es.Command) CommandConfig {
+func WireAggregate(aggregate es.Aggregate, middleware []es.CommandHandlerMiddleware, commands ...es.Command) CommandConfig {
 	t, name := es.GetTypeName(aggregate)
 	return func(store es.EventStore, snapshot es.SnapshotStore, eventBus es.EventBus, registry es.CommandRegister) {
 		handler := basic.NewCommandHandler(t, name, store, snapshot, eventBus)
+		handler = es.UseCommandHandlerMiddleware(handler, middleware...)
 
 		for _, cmd := range commands {
 			registry.Add(cmd, handler)
