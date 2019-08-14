@@ -19,6 +19,18 @@ type EventStore func() (es.EventStore, error)
 // SnapshotStore returns an es.SnapshotStore impl
 type SnapshotStore func() (es.SnapshotStore, error)
 
+// AggregateConfig hold information regarding aggregate
+type AggregateConfig struct {
+	Aggregate  es.Aggregate
+	Middleware []es.CommandHandlerMiddleware
+}
+
+// AggregateCommandConfig hold information regarding command
+type AggregateCommandConfig struct {
+	Command    es.Command
+	Middleware []es.CommandHandlerMiddleware
+}
+
 // Client has all the info / services for our ES platform
 type Client struct {
 	EventStore    es.EventStore
@@ -73,15 +85,32 @@ func NewClient(storeFactory EventStore, snapshotFactory SnapshotStore, eventBusF
 	return client, nil
 }
 
+// Aggregate creates a new AggregateConfig
+func Aggregate(aggregate es.Aggregate, middleware ...es.CommandHandlerMiddleware) *AggregateConfig {
+	return &AggregateConfig{
+		Aggregate:  aggregate,
+		Middleware: middleware,
+	}
+}
+
+// Command creates a new AggregateConfig
+func Command(command es.Command, middleware ...es.CommandHandlerMiddleware) *AggregateCommandConfig {
+	return &AggregateCommandConfig{
+		Command:    command,
+		Middleware: middleware,
+	}
+}
+
 // WireAggregate will connect a list of commands to an aggregate
-func WireAggregate(aggregate es.Aggregate, middleware []es.CommandHandlerMiddleware, commands ...es.Command) CommandConfig {
-	t, name := es.GetTypeName(aggregate)
+func WireAggregate(aggregate *AggregateConfig, commands ...*AggregateCommandConfig) CommandConfig {
+	t, name := es.GetTypeName(aggregate.Aggregate)
+
 	return func(store es.EventStore, snapshot es.SnapshotStore, eventBus es.EventBus, registry es.CommandRegister) {
 		handler := basic.NewCommandHandler(t, name, store, snapshot, eventBus)
-		handler = es.UseCommandHandlerMiddleware(handler, middleware...)
+		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {
-			registry.Add(cmd, handler)
+			registry.Add(cmd.Command, es.UseCommandHandlerMiddleware(handler, cmd.Middleware...))
 		}
 	}
 }
