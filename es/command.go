@@ -7,7 +7,7 @@ type Command interface {
 
 // BaseCommand to make it easier to get the ID
 type BaseCommand struct {
-	AggregateID string
+	AggregateID string `json:"aggregate_id"`
 }
 
 // GetAggregateID return the aggregate id
