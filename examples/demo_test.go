@@ -69,16 +69,17 @@ func TestStuff(t *testing.T) {
 	// eventbus := config.Nats("nats://localhost:4222", "identity-auth")
 
 	cli, err := config.NewClient(
-		config.LocalStore(),
 		// store,
-		config.LocalSnapshot(),
+		config.LocalStore(),
 		// snapshot,
-		config.LocalPublisher(),
+		config.LocalSnapshot(),
 		// eventbus,
+		config.LocalPublisher(),
+		// wire
 		config.WireAggregate(
-			&Auth{},
-			&Login{},
-			&Logout{},
+			config.Aggregate(&Auth{}),
+			config.Command(&Login{}),
+			config.Command(&Logout{}),
 		),
 	)
 	if err != nil {

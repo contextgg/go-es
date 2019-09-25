@@ -137,9 +137,9 @@ func LocalSnapshot() SnapshotStore {
 }
 
 // LocalPublisher used for testing
-func LocalPublisher() EventBus {
+func LocalPublisher(handlers ...es.EventHandler) EventBus {
 	return func() (es.EventBus, error) {
-		return basic.NewEventBus(), nil
+		return basic.NewEventBus(handlers...), nil
 	}
 }
 

@@ -7,14 +7,21 @@ import (
 )
 
 // NewEventBus create boring event bus
-func NewEventBus() es.EventBus {
-	return &eventBus{}
+func NewEventBus(handlers ...es.EventHandler) es.EventBus {
+	return &eventBus{handlers}
 }
 
 type eventBus struct {
+	handlers []es.EventHandler
 }
 
-func (b *eventBus) PublishEvent(context.Context, *es.Event) error {
+func (b *eventBus) PublishEvent(ctx context.Context, evt *es.Event) error {
+	for _, h := range b.handlers {
+		if err := h.HandleEvent(ctx, evt); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
