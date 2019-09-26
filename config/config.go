@@ -150,6 +150,25 @@ func Nats(uri string, namespace string) EventBus {
 	}
 }
 
+// CombinedPublisher for multiple publishers
+func CombinedPublisher(buses ...EventBus) EventBus {
+	return func() (es.EventBus, error) {
+		all := []es.EventBus{}
+
+		for _, bus := range buses {
+			b, err := bus()
+			if err != nil {
+				return nil, err
+			}
+
+			all = append(all, b)
+		}
+
+		return es.NewCombinedEventBus(all...), nil
+	}
+
+}
+
 // Mongo generates a MongoDB implementation of EventStore
 func Mongo(uri, db string, events ...interface{}) EventStore {
 	registry := es.NewEventRegister()
