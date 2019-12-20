@@ -18,7 +18,7 @@ type eventStore struct {
 	all map[string][]*es.Event
 }
 
-func (b *eventStore) Save(ctx context.Context, events []*es.Event, version int) error {
+func (b *eventStore) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
 	if len(events) < 1 {
 		return nil
 	}
@@ -34,7 +34,7 @@ func (b *eventStore) Save(ctx context.Context, events []*es.Event, version int) 
 	return nil
 }
 
-func (b *eventStore) Load(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
+func (b *eventStore) LoadEvents(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
 	index := fmt.Sprintf("%s.%s", typeName, id)
 
 	existing := b.all[index]
@@ -53,6 +53,13 @@ func (b *eventStore) Load(ctx context.Context, id, typeName string, fromVersion 
 	}
 
 	return filteredEvents, nil
+}
+
+func (b *eventStore) SaveAggregate(context.Context, int, es.Aggregate) error {
+	return nil
+}
+func (b *eventStore) LoadAggregate(context.Context, es.Aggregate) error {
+	return nil
 }
 
 // Close underlying connection

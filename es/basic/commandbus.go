@@ -7,25 +7,21 @@ import (
 )
 
 // NewCommandBus create a new bus from a registry
-func NewCommandBus(registry es.CommandRegister) es.CommandBus {
+func NewCommandBus() es.CommandBus {
 	return &commandBus{
-		register: registry,
+		es.NewCommandRegistry(),
 	}
 }
 
 type commandBus struct {
-	register es.CommandRegister
+	es.CommandRegistry
 }
 
 func (b *commandBus) HandleCommand(ctx context.Context, cmd es.Command) error {
 	// find the handler!
-	handler, err := b.register.Get(cmd)
+	handler, err := b.GetHandler(cmd)
 	if err != nil {
 		return err
 	}
 	return handler.HandleCommand(ctx, cmd)
-}
-
-// Close underlying connection
-func (b *commandBus) Close() {
 }

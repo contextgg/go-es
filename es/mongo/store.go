@@ -41,25 +41,27 @@ type EventDB struct {
 
 //Client for access to mongodb
 type Client struct {
-	db       string
-	session  *mgo.Session
-	registry es.EventRegister
+	db             string
+	session        *mgo.Session
+	registry       es.EventRegistry
+	minVersionDiff int
 }
 
 //NewClient generates a new client to access to mongodb
-func NewClient(uri, db string, registry es.EventRegister) (es.EventStore, error) {
+func NewClient(uri, db string, registry es.EventRegistry, minVersionDiff int) (es.EventStore, error) {
 	session, err := mgo.Dial(uri)
 	if err != nil {
 		return nil, err
 	}
 
-	session.SetMode(mgo.Monotonic, true)
-	//session.SetSafe(&mgo.Safe{W: 1})
+	session.SetMode(mgo.Strong, true)
+	session.SetSafe(&mgo.Safe{W: 1})
 
 	cli := &Client{
 		db,
 		session,
 		registry,
+		minVersionDiff,
 	}
 
 	// Indexes
@@ -92,7 +94,7 @@ func NewClient(uri, db string, registry es.EventRegister) (es.EventStore, error)
 }
 
 // Save the events ensuring the current version
-func (c *Client) Save(ctx context.Context, events []*es.Event, version int) error {
+func (c *Client) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
 	if len(events) < 1 {
 		return nil
 	}
@@ -173,7 +175,7 @@ func (c *Client) Save(ctx context.Context, events []*es.Event, version int) erro
 }
 
 // Load the events from the data store
-func (c *Client) Load(ctx context.Context, id string, typeName string, fromVersion int) ([]*es.Event, error) {
+func (c *Client) LoadEvents(ctx context.Context, id string, typeName string, fromVersion int) ([]*es.Event, error) {
 	sess := c.session.Copy()
 	defer sess.Close()
 
@@ -218,6 +220,64 @@ func (c *Client) Load(ctx context.Context, id string, typeName string, fromVersi
 	}
 
 	return events, nil
+}
+
+// Save the events ensuring the current version
+func (c *Client) SaveAggregate(ctx context.Context, previousVersion int, aggregate es.Aggregate) error {
+	// when min is < 0 we have disabled snapshotting
+	if c.minVersionDiff < 0 {
+		return nil
+	}
+
+	diff := aggregate.GetVersion() - previousVersion
+
+	// no need to snapshot yet
+	if diff < c.minVersionDiff {
+		return nil
+	}
+
+	sess := c.session.Copy()
+	defer sess.Close()
+
+	id := aggregate.GetID()
+	typeName := aggregate.GetTypeName()
+
+	selector := bson.M{"id": id}
+	update := bson.M{"$set": aggregate}
+
+	_, err := sess.
+		DB(c.db).
+		C(typeName).
+		Upsert(selector, update)
+
+	return err
+}
+
+// Load the events from the data store
+func (c *Client) LoadAggregate(ctx context.Context, aggregate es.Aggregate) error {
+	// when min is < 0 we have disabled snapshotting
+	if c.minVersionDiff < 0 {
+		return nil
+	}
+
+	sess := c.session.Copy()
+	defer sess.Close()
+
+	id := aggregate.GetID()
+	typeName := aggregate.GetTypeName()
+
+	query := bson.M{
+		"id": id,
+	}
+	if err := sess.
+		DB(c.db).
+		C(typeName).
+		Find(query).
+		One(aggregate); err != nil && err != mgo.ErrNotFound {
+		return err
+	}
+
+	return nil
 }
 
 // Close underlying connection

@@ -6,25 +6,25 @@ import (
 	"sync"
 )
 
-// CommandRegister stores the handlers for commands
-type CommandRegister interface {
-	Add(Command, CommandHandler) error
-	Get(Command) (CommandHandler, error)
+// CommandRegistry stores the handlers for commands
+type CommandRegistry interface {
+	SetHandler(CommandHandler, Command) error
+	GetHandler(Command) (CommandHandler, error)
 }
 
-// NewCommandRegister creates a new CommandRegister
-func NewCommandRegister() CommandRegister {
-	return &commandRegister{
+// NewCommandRegistry creates a new CommandRegistry
+func NewCommandRegistry() CommandRegistry {
+	return &commandRegistry{
 		registry: make(map[string]CommandHandler),
 	}
 }
 
-type commandRegister struct {
+type commandRegistry struct {
 	sync.RWMutex
 	registry map[string]CommandHandler
 }
 
-func (r *commandRegister) Add(cmd Command, handler CommandHandler) error {
+func (r *commandRegistry) SetHandler(handler CommandHandler, cmd Command) error {
 	r.Lock()
 	defer r.Unlock()
 
@@ -37,7 +37,7 @@ func (r *commandRegister) Add(cmd Command, handler CommandHandler) error {
 	return nil
 }
 
-func (r *commandRegister) Get(cmd Command) (CommandHandler, error) {
+func (r *commandRegistry) GetHandler(cmd Command) (CommandHandler, error) {
 	if cmd == nil {
 		return nil, errors.New("You need to supply a command")
 	}

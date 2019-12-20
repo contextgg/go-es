@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/contextgg/go-es/config"
+	"github.com/contextgg/go-es/builder"
 	"github.com/contextgg/go-es/es"
 )
 
@@ -61,27 +61,30 @@ type Logout struct {
 }
 
 func TestStuff(t *testing.T) {
-	// store := config.Mongo("mongodb://localhost:27017", "test",
-	// 	&LoggedIn{},
-	// 	&LoggedOut{},
-	// )
-	// snapshot := config.MongoSnapshot("mongodb://localhost:27017", "test", 0)
-	// eventbus := config.Nats("nats://localhost:4222", "identity-auth")
+	// store := builder.Mongo("mongodb://localhost:27017", "test", 0)
+	// eventbus := builder.Nats("nats://localhost:4222", "identity-auth")
 
-	cli, err := config.NewClient(
-		// store,
-		config.LocalStore(),
-		// snapshot,
-		config.LocalSnapshot(),
-		// eventbus,
-		config.LocalPublisher(),
-		// wire
-		config.WireAggregate(
-			config.Aggregate(&Auth{}),
-			config.Command(&Login{}),
-			config.Command(&Logout{}),
-		),
+	b := builder.NewClientBuilder()
+	b.RegisterEvent(
+		builder.Event(&LoggedIn{}, false),
+		builder.Event(&LoggedOut{}, false),
 	)
+	b.WireAggregate(
+		builder.Aggregate(&Auth{}),
+		builder.Command(&Login{}),
+		builder.Command(&Logout{}),
+	)
+	b.SetEventStore(
+		builder.LocalStore(),
+	)
+	// b.SetEventStore(
+	// 	builder.Mongo("mongodb://localhost:27017", "test", 0),
+	// )
+	// b.AddPublisher(
+	// 	builder.Nats("nats://localhost:4222", "test"),
+	// )
+
+	cli, err := b.Build()
 	if err != nil {
 		t.Error(err)
 		return
