@@ -36,6 +36,11 @@ func CommandHandler(bus es.CommandBus) http.Handler {
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(w).Encode(&cmd); err != nil {
+			http.Error(w, "could not encode command: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 	})
 }
