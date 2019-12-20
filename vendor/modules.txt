@@ -1,34 +1,16 @@
-# github.com/contextgg/go-sdk v1.6.1
-github.com/contextgg/go-sdk/httpbuilder
-github.com/contextgg/go-sdk/hydra
-github.com/contextgg/go-sdk/secrets
-# github.com/go-playground/locales v0.13.0
-github.com/go-playground/locales
-github.com/go-playground/locales/currency
-# github.com/go-playground/universal-translator v0.17.0
-github.com/go-playground/universal-translator
-# github.com/google/uuid v1.1.1
-github.com/google/uuid
-# github.com/leodido/go-urn v1.2.0
-github.com/leodido/go-urn
-# github.com/nats-io/jwt v0.3.0
+# github.com/nats-io/jwt v0.3.2
 github.com/nats-io/jwt
 # github.com/nats-io/nats.go v1.9.1
 github.com/nats-io/nats.go
 github.com/nats-io/nats.go/encoders/builtin
 github.com/nats-io/nats.go/util
-# github.com/nats-io/nkeys v0.1.0
+# github.com/nats-io/nkeys v0.1.3
 github.com/nats-io/nkeys
 # github.com/nats-io/nuid v1.0.1
 github.com/nats-io/nuid
-# github.com/opentracing/opentracing-go v1.1.0
-github.com/opentracing/opentracing-go
-github.com/opentracing/opentracing-go/log
 # golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
-# gopkg.in/go-playground/validator.v9 v9.30.2
-gopkg.in/go-playground/validator.v9
 # gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 gopkg.in/mgo.v2
 gopkg.in/mgo.v2/bson
