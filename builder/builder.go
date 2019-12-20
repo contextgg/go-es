@@ -80,7 +80,9 @@ type ClientBuilder interface {
 
 // NewClientBuilder create a new client builder
 func NewClientBuilder() ClientBuilder {
-	return &builder{}
+	return &builder{
+		eventStoreFactory: LocalStore(),
+	}
 }
 
 type builder struct {
@@ -184,7 +186,7 @@ func (b *builder) Build() (*Client, error) {
 	}
 
 	return &Client{
-		EventStore: nil,
+		EventStore: eventStore,
 		EventBus:   eventBus,
 		CommandBus: commandBus,
 	}, nil
