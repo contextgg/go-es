@@ -12,7 +12,7 @@ import (
 // CommandHandler parses commands and sends them
 func CommandHandler(bus es.CommandBus) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			http.Error(w, "unsuported method: "+r.Method, http.StatusMethodNotAllowed)
 			return
 		}

@@ -17,6 +17,7 @@ type EventType struct {
 type EventRegistry interface {
 	Set(source interface{}, isLocal bool)
 	Get(name string) (interface{}, error)
+	Has(name string) bool
 	IsLocal(name string) (bool, error)
 }
 
@@ -49,6 +50,12 @@ func (e *eventRegistry) Get(name string) (interface{}, error) {
 	}
 
 	return reflect.New(rawType).Interface(), nil
+}
+
+// Get a type based on its name
+func (e *eventRegistry) Has(name string) bool {
+	_, ok := e.registry[name]
+	return ok
 }
 
 // IsLocal the name

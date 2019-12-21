@@ -17,7 +17,7 @@ type CommandHandlerSetter func(es.CommandBus, es.EventStore, es.EventBus) error
 type EventStoreFactory func(es.EventRegistry) (es.EventStore, error)
 
 // EventPublisherFactory create an event publisher
-type EventPublisherFactory func() (es.EventPublisher, error)
+type EventPublisherFactory func(es.EventHandler) (es.EventPublisher, error)
 
 // Aggregate creates a new AggregateConfig
 func Aggregate(aggregate es.Aggregate, middleware ...es.CommandHandlerMiddleware) *AggregateConfig {
@@ -59,8 +59,8 @@ func Mongo(uri, db string, minVersionDiff int) EventStoreFactory {
 
 // Nats generates a Nats implementation of EventBus
 func Nats(uri string, namespace string) EventPublisherFactory {
-	return func() (es.EventPublisher, error) {
-		return nats.NewClient(uri, namespace)
+	return func(handler es.EventHandler) (es.EventPublisher, error) {
+		return nats.NewClient(uri, namespace, handler)
 	}
 }
 
@@ -155,21 +155,24 @@ func (b *builder) Build() (*Client, error) {
 		eventRegistry.Set(evt.Event, evt.IsLocal)
 	}
 
-	// create the event store
-	eventStore, err := b.eventStoreFactory(eventRegistry)
-	if err != nil {
-		return nil, err
-	}
-
 	// create the event handlers
 	eventHandlers := make([]es.EventHandler, len(b.eventHandlerFactories))
 	for i, fn := range b.eventHandlerFactories {
 		eventHandlers[i] = fn(commandBus)
 	}
 
+	// for handling local events
+	eventHandler := basic.NewLocalHandler(eventRegistry, eventHandlers)
+
+	// create the event store
+	eventStore, err := b.eventStoreFactory(eventRegistry)
+	if err != nil {
+		return nil, err
+	}
+
 	eventPublishers := make([]es.EventPublisher, len(b.eventPublisherFactories))
 	for i, fn := range b.eventPublisherFactories {
-		p, err := fn()
+		p, err := fn(eventHandler)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +180,8 @@ func (b *builder) Build() (*Client, error) {
 	}
 
 	// create the event bus
-	eventBus := basic.NewEventBus(eventRegistry, eventHandlers, eventPublishers)
+	canPublish := es.MatchNotLocal(eventRegistry)
+	eventBus := basic.NewEventBus(eventHandler, canPublish, eventPublishers)
 
 	for _, fn := range b.commandHandlerSetters {
 		if err := fn(commandBus, eventStore, eventBus); err != nil {
@@ -185,9 +189,5 @@ func (b *builder) Build() (*Client, error) {
 		}
 	}
 
-	return &Client{
-		EventStore: eventStore,
-		EventBus:   eventBus,
-		CommandBus: commandBus,
-	}, nil
+	return NewClient(eventStore, eventRegistry, eventHandler, eventBus, commandBus), nil
 }

@@ -8,38 +8,29 @@ import (
 
 // NewEventBus to handle aggregates
 func NewEventBus(
-	registry es.EventRegistry,
-	handlers []es.EventHandler,
+	handler es.EventHandler,
+	canPublish es.EventMatcher,
 	publishers []es.EventPublisher,
 ) es.EventBus {
 	return &eventBus{
-		registry:   registry,
-		handlers:   handlers,
+		handler:    handler,
+		canPublish: canPublish,
 		publishers: publishers,
 	}
 }
 
 type eventBus struct {
-	registry   es.EventRegistry
-	handlers   []es.EventHandler
+	handler    es.EventHandler
+	canPublish es.EventMatcher
 	publishers []es.EventPublisher
 }
 
 func (b *eventBus) HandleEvent(ctx context.Context, evt *es.Event) error {
-	// handle the events locally first.
-	for _, h := range b.handlers {
-		if err := h.HandleEvent(ctx, evt); err != nil {
-			return err
-		}
-	}
-
-	// look it up
-	isLocal, err := b.registry.IsLocal(evt.Type)
-	if err != nil {
+	if err := b.handler.HandleEvent(ctx, evt); err != nil {
 		return err
 	}
 
-	if isLocal {
+	if !b.canPublish(evt) {
 		return nil
 	}
 
@@ -54,4 +45,7 @@ func (b *eventBus) HandleEvent(ctx context.Context, evt *es.Event) error {
 
 // Close underlying connection
 func (b *eventBus) Close() {
+	for _, p := range b.publishers {
+		p.Close()
+	}
 }
