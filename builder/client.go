@@ -6,36 +6,37 @@ import (
 
 // NewClient creates a client
 func NewClient(
-	aggregateStore es.AggregateStore,
+	dataStore es.DataStore,
 	eventRegistry es.EventRegistry,
 	eventHandler es.EventHandler,
 	eventBus es.EventBus,
 	commandBus es.CommandBus,
 ) *Client {
 	return &Client{
-		AggregateStore: aggregateStore,
-		EventRegistry:  eventRegistry,
-		EventHandler:   eventHandler,
-		EventBus:       eventBus,
-		CommandBus:     commandBus,
+		DataStore:     dataStore,
+		EventRegistry: eventRegistry,
+		EventHandler:  eventHandler,
+		EventBus:      eventBus,
+		CommandBus:    commandBus,
 	}
 }
 
 // Client has all the info / services for our ES platform
 type Client struct {
-	AggregateStore es.AggregateStore
-	EventRegistry  es.EventRegistry
-	EventHandler   es.EventHandler
-	EventBus       es.EventBus
-	CommandBus     es.CommandBus
+	DataStore     es.DataStore
+	EventRegistry es.EventRegistry
+	EventHandler  es.EventHandler
+	EventBus      es.EventBus
+	CommandBus    es.CommandBus
 }
 
 // Close all the underlying services
-func (c *Client) Close() {
+func (c *Client) Close() error {
 	if c.EventBus != nil {
 		c.EventBus.Close()
 	}
-	if c.AggregateStore != nil {
-		c.AggregateStore.Close()
+	if c.DataStore != nil {
+		c.DataStore.Close()
 	}
+	return nil
 }

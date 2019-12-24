@@ -11,10 +11,10 @@ import (
 type EventHandlerFactory func(es.CommandBus) es.EventHandler
 
 // CommandHandlerSetter builds an eventhandler
-type CommandHandlerSetter func(es.CommandBus, es.AggregateStore, es.EventBus) error
+type CommandHandlerSetter func(es.CommandBus, es.DataStore, es.EventBus) error
 
-// AggregateStoreFactory create an event store
-type AggregateStoreFactory func(es.EventRegistry) (es.AggregateStore, error)
+// DataStoreFactory create an event store
+type DataStoreFactory func(es.EventRegistry) (es.DataStore, error)
 
 // EventPublisherFactory create an event publisher
 type EventPublisherFactory func(es.EventHandler) (es.EventPublisher, error)
@@ -44,16 +44,21 @@ func Event(source interface{}, islocal bool) *EventConfig {
 }
 
 // LocalStore used for testing
-func LocalStore() AggregateStoreFactory {
-	return func(es.EventRegistry) (es.AggregateStore, error) {
-		return basic.NewEventStore(), nil
+func LocalStore() DataStoreFactory {
+	return func(es.EventRegistry) (es.DataStore, error) {
+		return basic.NewMemoryStore(), nil
 	}
 }
 
 // Mongo generates a MongoDB implementation of EventStore
-func Mongo(uri, db string, minVersionDiff int) AggregateStoreFactory {
-	return func(r es.EventRegistry) (es.AggregateStore, error) {
-		return mongo.NewClient(uri, db, r, minVersionDiff)
+func Mongo(uri, db, username, password string) DataStoreFactory {
+	return func(r es.EventRegistry) (es.DataStore, error) {
+		data, err := mongo.Create(uri, db, username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		return mongo.NewStore(data, r.Get)
 	}
 }
 
@@ -66,7 +71,7 @@ func Nats(uri string, namespace string) EventPublisherFactory {
 
 // ClientBuilder for building a client we'll use
 type ClientBuilder interface {
-	GetAggregateStore() es.AggregateStore
+	GetDataStore() es.DataStore
 
 	RegisterEvents(events ...*EventConfig)
 	AddPublisher(publisher EventPublisherFactory)
@@ -79,7 +84,7 @@ type ClientBuilder interface {
 }
 
 // NewClientBuilder create a new client builder
-func NewClientBuilder(storeFactory AggregateStoreFactory) (ClientBuilder, error) {
+func NewClientBuilder(storeFactory DataStoreFactory) (ClientBuilder, error) {
 	registry := es.NewEventRegistry()
 	store, err := storeFactory(registry)
 	if err != nil {
@@ -87,22 +92,22 @@ func NewClientBuilder(storeFactory AggregateStoreFactory) (ClientBuilder, error)
 	}
 
 	return &builder{
-		eventRegistry:  registry,
-		aggregateStore: store,
+		eventRegistry: registry,
+		dataStore:     store,
 	}, nil
 }
 
 type builder struct {
-	eventRegistry  es.EventRegistry
-	aggregateStore es.AggregateStore
+	eventRegistry es.EventRegistry
+	dataStore     es.DataStore
 
 	eventPublisherFactories []EventPublisherFactory
 	eventHandlerFactories   []EventHandlerFactory
 	commandHandlerSetters   []CommandHandlerSetter
 }
 
-func (b *builder) GetAggregateStore() es.AggregateStore {
-	return b.aggregateStore
+func (b *builder) GetDataStore() es.DataStore {
+	return b.dataStore
 }
 
 func (b *builder) RegisterEvents(events ...*EventConfig) {
@@ -117,17 +122,18 @@ func (b *builder) AddPublisher(factory EventPublisherFactory) {
 
 func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
 	var creater = func(b es.CommandBus) es.EventHandler {
-		return basic.NewSagaHandler(b, saga, es.MatchAnyEventOf(events))
+		return es.NewSagaHandler(b, saga, es.MatchAnyEventOf(events))
 	}
 
 	// make the handler!
 	b.eventHandlerFactories = append(b.eventHandlerFactories, creater)
 }
+
 func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig) {
 	t, name := es.GetTypeName(aggregate.Aggregate)
 
-	var fn = func(commandBus es.CommandBus, store es.AggregateStore, eventBus es.EventBus) error {
-		handler := basic.NewCommandHandler(t, name, store, eventBus)
+	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
+		handler := es.NewAggregateHandler(t, name, store, eventBus, 0)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {
@@ -142,8 +148,9 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 
 	b.commandHandlerSetters = append(b.commandHandlerSetters, fn)
 }
+
 func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*CommandConfig) {
-	var fn = func(commandBus es.CommandBus, store es.AggregateStore, eventBus es.EventBus) error {
+	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
 		for _, cmd := range commands {
 			h := es.UseCommandHandlerMiddleware(handler, cmd.Middleware...)
 
@@ -156,8 +163,9 @@ func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*Com
 
 	b.commandHandlerSetters = append(b.commandHandlerSetters, fn)
 }
+
 func (b *builder) Build() (*Client, error) {
-	commandBus := basic.NewCommandBus()
+	commandBus := es.NewCommandBus()
 
 	// create the event handlers
 	eventHandlers := make([]es.EventHandler, len(b.eventHandlerFactories))
@@ -166,7 +174,7 @@ func (b *builder) Build() (*Client, error) {
 	}
 
 	// for handling local events
-	eventHandler := basic.NewLocalHandler(b.eventRegistry, eventHandlers)
+	eventHandler := es.NewLocalEventHandler(b.eventRegistry, eventHandlers)
 
 	eventPublishers := make([]es.EventPublisher, len(b.eventPublisherFactories))
 	for i, fn := range b.eventPublisherFactories {
@@ -179,13 +187,13 @@ func (b *builder) Build() (*Client, error) {
 
 	// create the event bus
 	canPublish := es.MatchNotLocal(b.eventRegistry)
-	eventBus := basic.NewEventBus(eventHandler, canPublish, eventPublishers)
+	eventBus := es.NewEventBus(eventHandler, canPublish, eventPublishers)
 
 	for _, fn := range b.commandHandlerSetters {
-		if err := fn(commandBus, b.aggregateStore, eventBus); err != nil {
+		if err := fn(commandBus, b.dataStore, eventBus); err != nil {
 			return nil, err
 		}
 	}
 
-	return NewClient(b.aggregateStore, b.eventRegistry, eventHandler, eventBus, commandBus), nil
+	return NewClient(b.dataStore, b.eventRegistry, eventHandler, eventBus, commandBus), nil
 }

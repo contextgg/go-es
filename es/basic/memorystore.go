@@ -7,18 +7,18 @@ import (
 	"github.com/contextgg/go-es/es"
 )
 
-// NewEventStore create boring event store
-func NewEventStore() es.EventStore {
-	return &eventStore{
+// NewMemoryStore create boring event store
+func NewMemoryStore() es.DataStore {
+	return &memoryStore{
 		all: make(map[string][]*es.Event),
 	}
 }
 
-type eventStore struct {
+type memoryStore struct {
 	all map[string][]*es.Event
 }
 
-func (b *eventStore) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
+func (b *memoryStore) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
 	if len(events) < 1 {
 		return nil
 	}
@@ -34,7 +34,7 @@ func (b *eventStore) SaveEvents(ctx context.Context, events []*es.Event, version
 	return nil
 }
 
-func (b *eventStore) LoadEvents(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
+func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
 	index := fmt.Sprintf("%s.%s", typeName, id)
 
 	existing := b.all[index]
@@ -55,13 +55,14 @@ func (b *eventStore) LoadEvents(ctx context.Context, id, typeName string, fromVe
 	return filteredEvents, nil
 }
 
-func (b *eventStore) SaveAggregate(context.Context, int, es.Aggregate) error {
+func (b *memoryStore) SaveAggregate(context.Context, es.Aggregate) error {
 	return nil
 }
-func (b *eventStore) LoadAggregate(context.Context, es.Aggregate) error {
+func (b *memoryStore) LoadAggregate(context.Context, es.Aggregate) error {
 	return nil
 }
 
 // Close underlying connection
-func (b *eventStore) Close() {
+func (b *memoryStore) Close() error {
+	return nil
 }

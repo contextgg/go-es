@@ -1,23 +1,21 @@
-package basic
+package es
 
 import (
 	"context"
-
-	"github.com/contextgg/go-es/es"
 )
 
 // NewSagaHandler turns an
-func NewSagaHandler(b es.CommandBus, saga es.Saga, matcher es.EventMatcher) es.EventHandler {
+func NewSagaHandler(b CommandBus, saga Saga, matcher EventMatcher) EventHandler {
 	return &sagaHandler{b, saga, matcher}
 }
 
 type sagaHandler struct {
-	bus     es.CommandBus
-	saga    es.Saga
-	matcher es.EventMatcher
+	bus     CommandBus
+	saga    Saga
+	matcher EventMatcher
 }
 
-func (s *sagaHandler) HandleEvent(ctx context.Context, evt *es.Event) error {
+func (s *sagaHandler) HandleEvent(ctx context.Context, evt *Event) error {
 	if !s.matcher(evt) {
 		return nil
 	}

@@ -2,11 +2,24 @@ package es
 
 import "context"
 
-// AggregateStore in charge of saving and loading events and aggregates from a data store
-type AggregateStore interface {
-	SaveEvents(context.Context, []*Event, int) error
-	LoadEvents(context.Context, string, string, int) ([]*Event, error)
-	SaveAggregate(context.Context, int, Aggregate) error
-	LoadAggregate(context.Context, Aggregate) error
-	Close()
+type AggregateStore struct {
+	dataStore DataStore
+	factory   AggregateFactory
+}
+
+func (a *AggregateStore) LoadAggregate(ctx context.Context, id string) (Aggregate, error) {
+	aggregate, err := a.factory(id)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.dataStore.LoadAggregate(ctx, aggregate); err != nil {
+		return nil, err
+	}
+	return aggregate, nil
+}
+
+func (a *AggregateStore) SaveAggregate(ctx context.Context, aggregate Aggregate) error {
+	// TODO check the type?
+
+	return a.dataStore.SaveAggregate(ctx, aggregate)
 }
