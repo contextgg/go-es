@@ -2,9 +2,18 @@ package es
 
 import "context"
 
+// NewAggregateStore creates a new store for a specific aggregate
+func NewAggregateStore(factory AggregateFactory, dataStore DataStore) *AggregateStore {
+	return &AggregateStore{
+		factory:   factory,
+		dataStore: dataStore,
+	}
+}
+
+// AggregateStore for loading and saving to the datastore
 type AggregateStore struct {
-	dataStore DataStore
 	factory   AggregateFactory
+	dataStore DataStore
 }
 
 func (a *AggregateStore) LoadAggregate(ctx context.Context, id string) (Aggregate, error) {
