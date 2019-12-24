@@ -11,10 +11,10 @@ import (
 type EventHandlerFactory func(es.CommandBus) es.EventHandler
 
 // CommandHandlerSetter builds an eventhandler
-type CommandHandlerSetter func(es.CommandBus, es.EventStore, es.EventBus) error
+type CommandHandlerSetter func(es.CommandBus, es.AggregateStore, es.EventBus) error
 
-// EventStoreFactory create an event store
-type EventStoreFactory func(es.EventRegistry) (es.EventStore, error)
+// AggregateStoreFactory create an event store
+type AggregateStoreFactory func(es.EventRegistry) (es.AggregateStore, error)
 
 // EventPublisherFactory create an event publisher
 type EventPublisherFactory func(es.EventHandler) (es.EventPublisher, error)
@@ -44,15 +44,15 @@ func Event(source interface{}, islocal bool) *EventConfig {
 }
 
 // LocalStore used for testing
-func LocalStore() EventStoreFactory {
-	return func(es.EventRegistry) (es.EventStore, error) {
+func LocalStore() AggregateStoreFactory {
+	return func(es.EventRegistry) (es.AggregateStore, error) {
 		return basic.NewEventStore(), nil
 	}
 }
 
 // Mongo generates a MongoDB implementation of EventStore
-func Mongo(uri, db string, minVersionDiff int) EventStoreFactory {
-	return func(r es.EventRegistry) (es.EventStore, error) {
+func Mongo(uri, db string, minVersionDiff int) AggregateStoreFactory {
+	return func(r es.EventRegistry) (es.AggregateStore, error) {
 		return mongo.NewClient(uri, db, r, minVersionDiff)
 	}
 }
@@ -66,10 +66,10 @@ func Nats(uri string, namespace string) EventPublisherFactory {
 
 // ClientBuilder for building a client we'll use
 type ClientBuilder interface {
-	RegisterEvent(events ...*EventConfig)
+	GetAggregateStore() es.AggregateStore
 
+	RegisterEvents(events ...*EventConfig)
 	AddPublisher(publisher EventPublisherFactory)
-	SetEventStore(factory EventStoreFactory)
 
 	WireSaga(saga es.Saga, events ...interface{})
 	WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig)
@@ -79,30 +79,40 @@ type ClientBuilder interface {
 }
 
 // NewClientBuilder create a new client builder
-func NewClientBuilder() ClientBuilder {
-	return &builder{
-		eventStoreFactory: LocalStore(),
+func NewClientBuilder(storeFactory AggregateStoreFactory) (ClientBuilder, error) {
+	registry := es.NewEventRegistry()
+	store, err := storeFactory(registry)
+	if err != nil {
+		return nil, err
 	}
+
+	return &builder{
+		eventRegistry:  registry,
+		aggregateStore: store,
+	}, nil
 }
 
 type builder struct {
-	events            []*EventConfig
-	eventStoreFactory EventStoreFactory
+	eventRegistry  es.EventRegistry
+	aggregateStore es.AggregateStore
 
 	eventPublisherFactories []EventPublisherFactory
 	eventHandlerFactories   []EventHandlerFactory
 	commandHandlerSetters   []CommandHandlerSetter
 }
 
-func (b *builder) RegisterEvent(events ...*EventConfig) {
-	b.events = events
+func (b *builder) GetAggregateStore() es.AggregateStore {
+	return b.aggregateStore
+}
+
+func (b *builder) RegisterEvents(events ...*EventConfig) {
+	for _, evt := range events {
+		b.eventRegistry.Set(evt.Event, evt.IsLocal)
+	}
 }
 
 func (b *builder) AddPublisher(factory EventPublisherFactory) {
 	b.eventPublisherFactories = append(b.eventPublisherFactories, factory)
-}
-func (b *builder) SetEventStore(factory EventStoreFactory) {
-	b.eventStoreFactory = factory
 }
 
 func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
@@ -116,7 +126,7 @@ func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
 func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig) {
 	t, name := es.GetTypeName(aggregate.Aggregate)
 
-	var fn = func(commandBus es.CommandBus, store es.EventStore, eventBus es.EventBus) error {
+	var fn = func(commandBus es.CommandBus, store es.AggregateStore, eventBus es.EventBus) error {
 		handler := basic.NewCommandHandler(t, name, store, eventBus)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
@@ -133,7 +143,7 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 	b.commandHandlerSetters = append(b.commandHandlerSetters, fn)
 }
 func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*CommandConfig) {
-	var fn = func(commandBus es.CommandBus, store es.EventStore, eventBus es.EventBus) error {
+	var fn = func(commandBus es.CommandBus, store es.AggregateStore, eventBus es.EventBus) error {
 		for _, cmd := range commands {
 			h := es.UseCommandHandlerMiddleware(handler, cmd.Middleware...)
 
@@ -149,12 +159,6 @@ func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*Com
 func (b *builder) Build() (*Client, error) {
 	commandBus := basic.NewCommandBus()
 
-	// create the event register.
-	eventRegistry := es.NewEventRegistry()
-	for _, evt := range b.events {
-		eventRegistry.Set(evt.Event, evt.IsLocal)
-	}
-
 	// create the event handlers
 	eventHandlers := make([]es.EventHandler, len(b.eventHandlerFactories))
 	for i, fn := range b.eventHandlerFactories {
@@ -162,13 +166,7 @@ func (b *builder) Build() (*Client, error) {
 	}
 
 	// for handling local events
-	eventHandler := basic.NewLocalHandler(eventRegistry, eventHandlers)
-
-	// create the event store
-	eventStore, err := b.eventStoreFactory(eventRegistry)
-	if err != nil {
-		return nil, err
-	}
+	eventHandler := basic.NewLocalHandler(b.eventRegistry, eventHandlers)
 
 	eventPublishers := make([]es.EventPublisher, len(b.eventPublisherFactories))
 	for i, fn := range b.eventPublisherFactories {
@@ -180,14 +178,14 @@ func (b *builder) Build() (*Client, error) {
 	}
 
 	// create the event bus
-	canPublish := es.MatchNotLocal(eventRegistry)
+	canPublish := es.MatchNotLocal(b.eventRegistry)
 	eventBus := basic.NewEventBus(eventHandler, canPublish, eventPublishers)
 
 	for _, fn := range b.commandHandlerSetters {
-		if err := fn(commandBus, eventStore, eventBus); err != nil {
+		if err := fn(commandBus, b.aggregateStore, eventBus); err != nil {
 			return nil, err
 		}
 	}
 
-	return NewClient(eventStore, eventRegistry, eventHandler, eventBus, commandBus), nil
+	return NewClient(b.aggregateStore, b.eventRegistry, eventHandler, eventBus, commandBus), nil
 }
