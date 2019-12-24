@@ -75,6 +75,7 @@ type ClientBuilder interface {
 
 	RegisterEvents(events ...*EventConfig)
 	AddPublisher(publisher EventPublisherFactory)
+	SetDefaultSnapshotMin(min int)
 
 	WireSaga(saga es.Saga, events ...interface{})
 	WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig)
@@ -94,12 +95,14 @@ func NewClientBuilder(storeFactory DataStoreFactory) (ClientBuilder, error) {
 	return &builder{
 		eventRegistry: registry,
 		dataStore:     store,
+		snapshotMin:   -1,
 	}, nil
 }
 
 type builder struct {
 	eventRegistry es.EventRegistry
 	dataStore     es.DataStore
+	snapshotMin   int
 
 	eventPublisherFactories []EventPublisherFactory
 	eventHandlerFactories   []EventHandlerFactory
@@ -120,6 +123,10 @@ func (b *builder) AddPublisher(factory EventPublisherFactory) {
 	b.eventPublisherFactories = append(b.eventPublisherFactories, factory)
 }
 
+func (b *builder) SetDefaultSnapshotMin(min int) {
+	b.snapshotMin = min
+}
+
 func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
 	var creater = func(b es.CommandBus) es.EventHandler {
 		return es.NewSagaHandler(b, saga, es.MatchAnyEventOf(events))
@@ -133,7 +140,7 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 	t, name := es.GetTypeName(aggregate.Aggregate)
 
 	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
-		handler := es.NewAggregateHandler(t, name, store, eventBus, 0)
+		handler := es.NewAggregateHandler(t, name, store, eventBus, b.snapshotMin)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {
