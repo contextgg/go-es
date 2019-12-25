@@ -23,3 +23,14 @@ type Event struct {
 func (e Event) String() string {
 	return fmt.Sprintf("%s@%d", e.Type, e.Version)
 }
+
+// NewEvent will create an event from data
+func NewEvent(data interface{}) *Event {
+	timestamp := GetTimestamp()
+	_, typeName := GetTypeName(data)
+	return &Event{
+		Type:      typeName,
+		Timestamp: timestamp,
+		Data:      data,
+	}
+}
