@@ -7,7 +7,6 @@ import (
 // EventBus for creating commands
 type EventBus interface {
 	EventHandler
-	AddHandler(EventHandler)
 	AddPublisher(EventPublisher)
 	Close()
 }
@@ -15,20 +14,18 @@ type EventBus interface {
 // NewEventBus to handle aggregates
 func NewEventBus(
 	registry EventRegistry,
+	handler EventHandler,
 ) EventBus {
 	return &eventBus{
 		registry: registry,
+		handler:  handler,
 	}
 }
 
 type eventBus struct {
 	registry   EventRegistry
-	handlers   []EventHandler
+	handler    EventHandler
 	publishers []EventPublisher
-}
-
-func (b *eventBus) AddHandler(handler EventHandler) {
-	b.handlers = append(b.handlers, handler)
 }
 
 func (b *eventBus) AddPublisher(publisher EventPublisher) {
@@ -36,8 +33,7 @@ func (b *eventBus) AddPublisher(publisher EventPublisher) {
 }
 
 func (b *eventBus) HandleEvent(ctx context.Context, evt *Event) error {
-	handler := NewLocalEventHandler(b.registry, b.handlers)
-	if err := handler.HandleEvent(ctx, evt); err != nil {
+	if err := b.handler.HandleEvent(ctx, evt); err != nil {
 		return err
 	}
 

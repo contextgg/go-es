@@ -5,18 +5,25 @@ import (
 )
 
 // NewLocalEventHandler turns an
-func NewLocalEventHandler(registry EventRegistry, handlers []EventHandler) EventHandler {
-	matcher := MatchAnyInRegistry(registry)
-	return &localEventHandler{matcher, handlers}
+func NewLocalEventHandler(registry EventRegistry) *LocalEventHandler {
+	return &LocalEventHandler{
+		registry: registry,
+	}
 }
 
-type localEventHandler struct {
-	matcher  EventMatcher
+// LocalEventHandler for local event handling
+type LocalEventHandler struct {
+	registry EventRegistry
 	handlers []EventHandler
 }
 
-func (s *localEventHandler) HandleEvent(ctx context.Context, evt *Event) error {
-	if !s.matcher(evt) {
+func (s *LocalEventHandler) AddHandler(handler EventHandler) {
+	s.handlers = append(s.handlers, handler)
+}
+
+func (s *LocalEventHandler) HandleEvent(ctx context.Context, evt *Event) error {
+	matcher := MatchAnyInRegistry(s.registry)
+	if !matcher(evt) {
 		return nil
 	}
 	for _, h := range s.handlers {

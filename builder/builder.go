@@ -96,11 +96,14 @@ func NewClientBuilder(storeFactory DataStoreFactory) (ClientBuilder, error) {
 		return nil, err
 	}
 
+	local := es.NewLocalEventHandler(registry)
+
 	return &builder{
 		eventRegistry: registry,
 		dataStore:     store,
 		snapshotMin:   -1,
-		eventBus:      es.NewEventBus(registry),
+		eventHandler:  local,
+		eventBus:      es.NewEventBus(registry, local),
 	}, nil
 }
 
@@ -108,6 +111,7 @@ type builder struct {
 	eventRegistry es.EventRegistry
 	dataStore     es.DataStore
 	eventBus      es.EventBus
+	eventHandler  *es.LocalEventHandler
 	snapshotMin   int
 
 	eventPublisherFactories []EventPublisherFactory
@@ -199,7 +203,7 @@ func (b *builder) Build() (*Client, error) {
 	// create the event handlers
 	for _, fn := range b.eventHandlerFactories {
 		eh := fn(commandBus)
-		b.eventBus.AddHandler(eh)
+		b.eventHandler.AddHandler(eh)
 	}
 
 	for _, fn := range b.eventPublisherFactories {
@@ -216,5 +220,5 @@ func (b *builder) Build() (*Client, error) {
 		}
 	}
 
-	return NewClient(b.dataStore, b.eventRegistry, b.eventBus, commandBus), nil
+	return NewClient(b.dataStore, b.eventRegistry, b.eventHandler, b.eventBus, commandBus), nil
 }
