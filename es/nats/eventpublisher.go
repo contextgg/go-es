@@ -37,7 +37,7 @@ func retryConnect(uri string, max int) (*nats.Conn, error) {
 }
 
 // NewClient returns the basic client to access to nats
-func NewClient(uri string, namespace string, handler es.EventHandler) (es.EventPublisher, error) {
+func NewClient(uri string, namespace string) (es.EventPublisher, error) {
 	conn, err := retryConnect(uri, 5)
 	if err != nil {
 		return nil, err

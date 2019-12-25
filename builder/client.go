@@ -8,14 +8,12 @@ import (
 func NewClient(
 	dataStore es.DataStore,
 	eventRegistry es.EventRegistry,
-	eventHandler es.EventHandler,
 	eventBus es.EventBus,
 	commandBus es.CommandBus,
 ) *Client {
 	return &Client{
 		DataStore:     dataStore,
 		EventRegistry: eventRegistry,
-		EventHandler:  eventHandler,
 		EventBus:      eventBus,
 		CommandBus:    commandBus,
 	}
@@ -25,7 +23,6 @@ func NewClient(
 type Client struct {
 	DataStore     es.DataStore
 	EventRegistry es.EventRegistry
-	EventHandler  es.EventHandler
 	EventBus      es.EventBus
 	CommandBus    es.CommandBus
 }

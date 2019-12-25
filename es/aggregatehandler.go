@@ -39,10 +39,10 @@ func NewAggregateHandler(
 	eventBus EventBus,
 	minVersionDiff int,
 ) CommandHandler {
-	factory := func(id string) (Aggregate, error) {
+	factory := func(id string) (AggregateSourced, error) {
 		aggregate, ok := reflect.
 			New(aggregateType).
-			Interface().(Aggregate)
+			Interface().(AggregateSourced)
 		if !ok {
 			return nil, ErrCreatingAggregate
 		}
@@ -59,13 +59,13 @@ func NewAggregateHandler(
 }
 
 type aggregateHandler struct {
-	factory        AggregateFactory
+	factory        AggregateSourcedFactory
 	dataStore      DataStore
 	eventBus       EventBus
 	minVersionDiff int
 }
 
-func (h *aggregateHandler) applyEvents(ctx context.Context, aggregate Aggregate, originalEvents []*Event) error {
+func (h *aggregateHandler) applyEvents(ctx context.Context, aggregate AggregateSourced, originalEvents []*Event) error {
 	aggregateType := aggregate.GetTypeName()
 
 	for _, event := range originalEvents {
