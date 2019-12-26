@@ -146,7 +146,7 @@ func (b *builder) SetDebug() {
 
 func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
 	var creater = func(b es.CommandBus) es.EventHandler {
-		return es.NewSagaHandler(b, saga, es.MatchAnyEventOf(events))
+		return es.NewSagaHandler(b, saga, es.MatchAnyEventOf(events...))
 	}
 
 	// make the handler!
