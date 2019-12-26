@@ -188,7 +188,7 @@ func (c *store) LoadAggregate(ctx context.Context, aggregate es.Aggregate) error
 	if err := c.db.
 		Collection(typeName).
 		FindOne(ctx, query).
-		Decode(&aggregate); err != nil && err != mongo.ErrNoDocuments {
+		Decode(aggregate); err != nil && err != mongo.ErrNoDocuments {
 		return err
 	}
 

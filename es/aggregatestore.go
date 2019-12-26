@@ -26,11 +26,28 @@ type AggregateStore struct {
 func (a *AggregateStore) LoadAggregate(ctx context.Context, id string) (Aggregate, error) {
 	aggregate, err := a.factory(id)
 	if err != nil {
+		log.
+			Error().
+			Err(err).
+			Str("id", id).
+			Msg("Could not create Aggregate with factory")
 		return nil, err
 	}
 	if err := a.dataStore.LoadAggregate(ctx, aggregate); err != nil {
+		log.
+			Error().
+			Err(err).
+			Str("id", aggregate.GetID()).
+			Str("type_name", aggregate.GetTypeName()).
+			Msg("Could not load aggregate")
 		return nil, err
 	}
+
+	log.
+		Debug().
+		Str("id", aggregate.GetID()).
+		Str("type_name", aggregate.GetTypeName()).
+		Msg("LoadAggregate successful")
 	return aggregate, nil
 }
 

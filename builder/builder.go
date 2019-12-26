@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"reflect"
-
 	"github.com/rs/zerolog"
 
 	"github.com/contextgg/go-es/es"
@@ -191,18 +189,7 @@ func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*Com
 }
 
 func (b *builder) MakeAggregateStore(aggregate es.Aggregate) *es.AggregateStore {
-	t, name := es.GetTypeName(aggregate)
-	factory := func(id string) (es.Aggregate, error) {
-		aggregate, ok := reflect.
-			New(t).
-			Interface().(es.Aggregate)
-		if !ok {
-			return nil, es.ErrCreatingAggregate
-		}
-		aggregate.Initialize(id, name)
-		return aggregate, nil
-	}
-
+	factory := es.NewAggregateFactory(aggregate)
 	return es.NewAggregateStore(factory, b.dataStore, b.eventBus)
 }
 
