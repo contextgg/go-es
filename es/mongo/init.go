@@ -90,29 +90,17 @@ func Create(uri, db, username, password string, createIndexes bool) (*mongo.Data
 				SetName("events.id.type.version"),
 		}
 
-		if _, err := database.
+		database.
 			Collection(AggregatesCollection).
 			Indexes().
-			CreateOne(ctx, aggregatesIndex, indexOpts); err != nil {
-			sublogger.
-				Error().
-				Err(err).
-				Msg("Could not create aggregates index")
-			return nil, err
-		}
-		if _, err := database.
+			CreateOne(ctx, aggregatesIndex, indexOpts)
+		database.
 			Collection(EventsCollection).
 			Indexes().
-			CreateOne(ctx, eventsIndex, indexOpts); err != nil {
-			sublogger.
-				Error().
-				Err(err).
-				Msg("Could not create events index")
-			return nil, err
-		}
+			CreateOne(ctx, eventsIndex, indexOpts)
 
 		log.Debug().
-			Msg("Indexes created successfully")
+			Msg("Indexes may have been created successfully")
 	}
 
 	log.Debug().
