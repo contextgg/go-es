@@ -3,6 +3,8 @@ package builder
 import (
 	"reflect"
 
+	"github.com/rs/zerolog"
+
 	"github.com/contextgg/go-es/es"
 	"github.com/contextgg/go-es/es/basic"
 	"github.com/contextgg/go-es/es/mongo"
@@ -53,9 +55,9 @@ func LocalStore() DataStoreFactory {
 }
 
 // Mongo generates a MongoDB implementation of EventStore
-func Mongo(uri, db, username, password string) DataStoreFactory {
+func Mongo(uri, db, username, password string, createIndexes bool) DataStoreFactory {
 	return func(r es.EventRegistry) (es.DataStore, error) {
-		data, err := mongo.Create(uri, db, username, password)
+		data, err := mongo.Create(uri, db, username, password, createIndexes)
 		if err != nil {
 			return nil, err
 		}
@@ -78,6 +80,7 @@ type ClientBuilder interface {
 	RegisterEvents(events ...*EventConfig)
 	AddPublisher(publisher EventPublisherFactory)
 	SetDefaultSnapshotMin(min int)
+	SetDebug()
 
 	WireSaga(saga es.Saga, events ...interface{})
 	WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig)
@@ -90,6 +93,8 @@ type ClientBuilder interface {
 
 // NewClientBuilder create a new client builder
 func NewClientBuilder(storeFactory DataStoreFactory) (ClientBuilder, error) {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 	registry := es.NewEventRegistry()
 	store, err := storeFactory(registry)
 	if err != nil {
@@ -135,6 +140,10 @@ func (b *builder) AddPublisher(factory EventPublisherFactory) {
 
 func (b *builder) SetDefaultSnapshotMin(min int) {
 	b.snapshotMin = min
+}
+
+func (b *builder) SetDebug() {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
 func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {

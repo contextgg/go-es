@@ -6,6 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/contextgg/go-es/es"
 )
@@ -165,9 +166,13 @@ func (c *store) SaveAggregate(ctx context.Context, aggregate es.Aggregate) error
 	selector := bson.M{"id": id}
 	update := bson.M{"$set": aggregate}
 
+	opts := options.
+		Update().
+		SetUpsert(true)
+
 	_, err := c.db.
 		Collection(typeName).
-		UpdateOne(ctx, selector, update)
+		UpdateOne(ctx, selector, update, opts)
 
 	return err
 }
