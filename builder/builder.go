@@ -2,6 +2,7 @@ package builder
 
 import (
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/contextgg/go-es/es"
 	"github.com/contextgg/go-es/es/basic"
@@ -194,12 +195,16 @@ func (b *builder) MakeAggregateStore(aggregate es.Aggregate) *es.AggregateStore 
 }
 
 func (b *builder) Build() (*Client, error) {
+	log.Debug().Msg("Starting to build the go-es Client")
+
 	commandBus := es.NewCommandBus()
 
 	// create the event handlers
 	for _, fn := range b.eventHandlerFactories {
 		eh := fn(commandBus)
 		b.eventHandler.AddHandler(eh)
+
+		log.Debug().Msg("Event Handler added")
 	}
 
 	for _, fn := range b.eventPublisherFactories {
@@ -208,12 +213,16 @@ func (b *builder) Build() (*Client, error) {
 			return nil, err
 		}
 		b.eventBus.AddPublisher(p)
+
+		log.Debug().Msg("Event Publisher added")
 	}
 
 	for _, fn := range b.commandHandlerSetters {
 		if err := fn(commandBus, b.dataStore, b.eventBus); err != nil {
 			return nil, err
 		}
+
+		log.Debug().Msg("Command Handler configured")
 	}
 
 	return NewClient(b.dataStore, b.eventRegistry, b.eventHandler, b.eventBus, commandBus), nil

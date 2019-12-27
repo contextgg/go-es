@@ -9,7 +9,7 @@ import (
 
 // SmashggEvent for testing
 type SmashggEvent struct {
-	es.BaseAggregate
+	es.BaseAggregateSourced
 }
 
 func TestLoadAggregate(t *testing.T) {
