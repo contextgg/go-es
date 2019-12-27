@@ -44,12 +44,12 @@ func (e *eventRegistry) Set(source interface{}, isLocal bool) {
 
 // Get a type based on its name
 func (e *eventRegistry) Get(name string) (interface{}, error) {
-	rawType, ok := e.registry[name]
+	et, ok := e.registry[name]
 	if !ok {
 		return nil, fmt.Errorf("Cannot find %s in registry", name)
 	}
 
-	return reflect.New(rawType).Interface(), nil
+	return reflect.New(et.Type).Interface(), nil
 }
 
 // Get a type based on its name
