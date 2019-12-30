@@ -1,6 +1,8 @@
 package es
 
-import "context"
+import (
+	"context"
+)
 
 // DataStore in charge of saving and loading events and aggregates from a data store
 type DataStore interface {

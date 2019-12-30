@@ -2,20 +2,44 @@ package basic
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/contextgg/go-es/es"
 )
 
-// NewMemoryStore create boring event store
-func NewMemoryStore() es.DataStore {
-	return &memoryStore{
-		all: make(map[string][]*es.Event),
+// ErrAggregateNil guard our function
+var ErrAggregateNil = errors.New("Aggregate is nil")
+
+// Option so we can inject test data
+type Option = func(*memoryStore)
+
+// AddAggregate will add aggregate to the base
+func AddAggregate(agg es.Aggregate) Option {
+	return func(ms *memoryStore) {
+		id := agg.GetID()
+		ms.allAggregates[id] = agg
 	}
 }
 
+// NewMemoryStore create boring event store
+func NewMemoryStore(opts ...Option) es.DataStore {
+	ms := &memoryStore{
+		allEvents:     make(map[string][]*es.Event),
+		allAggregates: make(map[string]es.Aggregate),
+	}
+
+	for _, opt := range opts {
+		opt(ms)
+	}
+
+	return ms
+}
+
 type memoryStore struct {
-	all map[string][]*es.Event
+	allEvents     map[string][]*es.Event
+	allAggregates map[string]es.Aggregate
 }
 
 func (b *memoryStore) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
@@ -29,15 +53,15 @@ func (b *memoryStore) SaveEvents(ctx context.Context, events []*es.Event, versio
 	index := fmt.Sprintf("%s.%s", typeName, id)
 
 	// get the existing stuff!.
-	existing := b.all[index]
-	b.all[index] = append(existing, events...)
+	existing := b.allEvents[index]
+	b.allEvents[index] = append(existing, events...)
 	return nil
 }
 
 func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
 	index := fmt.Sprintf("%s.%s", typeName, id)
 
-	existing := b.all[index]
+	existing := b.allEvents[index]
 	if existing == nil {
 		return []*es.Event{}, nil
 	}
@@ -55,14 +79,33 @@ func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromV
 	return filteredEvents, nil
 }
 
-func (b *memoryStore) SaveAggregate(context.Context, es.Aggregate) error {
+func (b *memoryStore) SaveAggregate(ctx context.Context, agg es.Aggregate) error {
+	if agg == nil {
+		return ErrAggregateNil
+	}
+
+	id := agg.GetID()
+	b.allAggregates[id] = agg
 	return nil
 }
-func (b *memoryStore) LoadAggregate(context.Context, es.Aggregate) error {
+func (b *memoryStore) LoadAggregate(ctx context.Context, agg es.Aggregate) error {
+	if agg == nil {
+		return ErrAggregateNil
+	}
+
+	id := agg.GetID()
+	if nagg, ok := b.allAggregates[id]; ok {
+		set(agg, nagg)
+	}
 	return nil
 }
 
 // Close underlying connection
 func (b *memoryStore) Close() error {
 	return nil
+}
+
+func set(x, y interface{}) {
+	val := reflect.ValueOf(y).Elem()
+	reflect.ValueOf(x).Elem().Set(val)
 }
