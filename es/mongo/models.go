@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"go.mongodb.org/mongo-driver/bson"
 	"time"
 )
 
@@ -13,11 +14,10 @@ type AggregateDB struct {
 
 //EventDB defines the structure of the events to be stored
 type EventDB struct {
-	AggregateID   string      `bson:"aggregate_id"`
-	AggregateType string      `bson:"aggregate_type"`
-	Type          string      `bson:"event_type"`
-	Version       int         `bson:"version"`
-	Timestamp     time.Time   `bson:"timestamp"`
-	Data          interface{} `bson:"data,omitempty"`
-	RawData       []byte      `bson:"raw,omitempty"`
+	AggregateID   string         `bson:"aggregate_id"`
+	AggregateType string         `bson:"aggregate_type"`
+	Type          string         `bson:"event_type"`
+	Version       int            `bson:"version"`
+	Timestamp     time.Time      `bson:"timestamp"`
+	Data          *bson.RawValue `bson:"data,omitempty"`
 }

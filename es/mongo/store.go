@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -29,24 +30,37 @@ type store struct {
 
 // Save the events ensuring the current version
 func (c *store) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
-	if len(events) < 1 {
+	if len(events) == 0 {
+		log.Debug().Msg("No events")
 		return nil
 	}
 
 	aggregateID := events[0].AggregateID
 	aggregateType := events[0].AggregateType
-	maxVersion := version
+	filter := bson.M{
+		"aggregate_id":   aggregateID,
+		"aggregate_type": aggregateType,
+	}
 
+	logger := log.
+		With().
+		Str("aggregateID", aggregateID).
+		Str("aggregateType", aggregateType).
+		Int("version", version).
+		Logger()
+
+	maxVersion := version
 	items := []interface{}{}
 	for _, event := range events {
-		var raw []byte
-
-		// Marshal the data like a good person!
+		var data *bson.RawValue
 		if event.Data != nil {
-			var err error
-			raw, err = bson.Marshal(event.Data)
+			b, err := bson.Marshal(event.Data)
 			if err != nil {
 				return err
+			}
+			data = &bson.RawValue{
+				Type:  bson.TypeEmbeddedDocument,
+				Value: b,
 			}
 		}
 
@@ -56,8 +70,7 @@ func (c *store) SaveEvents(ctx context.Context, events []*es.Event, version int)
 			Type:          event.Type,
 			Version:       event.Version,
 			Timestamp:     event.Timestamp,
-			Data:          event.Data,
-			RawData:       raw,
+			Data:          data,
 		}
 		items = append(items, item)
 
@@ -66,57 +79,77 @@ func (c *store) SaveEvents(ctx context.Context, events []*es.Event, version int)
 		}
 	}
 
-	if version == 0 {
-		// store the aggregate so we can confirm it later!.
-		aggregate := AggregateDB{AggregateID: aggregateID, AggregateType: aggregateType, Version: maxVersion}
-		if _, err := c.db.
-			Collection(AggregatesCollection).
-			InsertOne(ctx, &aggregate); err != nil {
-			return err
-		}
-	} else {
-		// load up the aggregate by ID!
-		var aggregate AggregateDB
-		query := bson.M{
+	// load up the aggregate by ID!
+	aggregate := &AggregateDB{}
+	if err := c.db.
+		Collection(AggregatesCollection).
+		FindOne(ctx, filter).
+		Decode(&aggregate); err != nil && err != mongo.ErrNoDocuments {
+		logger.
+			Error().
+			Err(err).
+			Msg("Could not load aggregate")
+		return err
+	}
+
+	logger.Debug().Int("version", aggregate.Version).Msg("Got a version?")
+
+	if aggregate.Version != version {
+		logger.
+			Error().
+			Err(ErrVersionMismatch).
+			Msg("Version issues")
+		return ErrVersionMismatch
+	}
+	aggregate.Version = maxVersion
+
+	updateOptions := options.
+		Update().
+		SetUpsert(true)
+	update := bson.M{
+		"$set": bson.M{
 			"aggregate_id":   aggregateID,
 			"aggregate_type": aggregateType,
-		}
-		if err := c.db.
-			Collection(AggregatesCollection).
-			FindOne(ctx, query).
-			Decode(&aggregate); err != nil {
-			return err
-		}
-		if aggregate.Version != version {
-			return ErrVersionMismatch
-		}
-
-		if _, err := c.db.
-			Collection(AggregatesCollection).
-			UpdateOne(
-				ctx,
-				query,
-				bson.M{
-					"$inc": bson.M{"version": len(events)},
-				}); err != nil {
-			return err
-		}
+			"version":        maxVersion,
+		},
+	}
+	if _, err := c.db.
+		Collection(AggregatesCollection).
+		UpdateOne(ctx, filter, update, updateOptions); err != nil {
+		logger.
+			Error().
+			Err(err).
+			Msg("Could not insert aggregate")
+		return err
 	}
 
 	// store all events
 	if _, err := c.db.
 		Collection(EventsCollection).
 		InsertMany(ctx, items); err != nil {
+		logger.
+			Error().
+			Err(err).
+			Msg("Could not insert many events")
 		return err
 	}
 
+	logger.
+		Debug().
+		Msg("Success")
 	return nil
 }
 
 // Load the events from the data store
 func (c *store) LoadEvents(ctx context.Context, id string, typeName string, fromVersion int) ([]*es.Event, error) {
-	events := []*es.Event{}
+	logger := log.
+		With().
+		Str("aggregateID", id).
+		Str("aggregateType", typeName).
+		Int("fromVersion", fromVersion).
+		Logger()
 
+	events := []*es.Event{}
 	query := bson.M{
 		"aggregate_id":   id,
 		"aggregate_type": typeName,
@@ -126,6 +159,10 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 		Collection(EventsCollection).
 		Find(ctx, query)
 	if err != nil {
+		logger.
+			Error().
+			Err(err).
+			Msg("Couldn't find events")
 		return nil, err
 	}
 	defer cur.Close(ctx)
@@ -136,13 +173,25 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 			return nil, err
 		}
 
+		logger.Debug().Interface("data", item.Data).Msg("Do we have raw data")
+
 		// create the even
 		data, err := c.factory(item.Type)
 		if err != nil {
+			logger.
+				Error().
+				Err(err).
+				Str("type", item.Type).
+				Msg("Issue creating the factory")
 			return nil, err
 		}
 
-		if err := bson.Unmarshal(item.RawData, &data); err != nil {
+		if err := item.Data.Unmarshal(data); err != nil {
+			logger.
+				Error().
+				Err(err).
+				Str("type", item.Type).
+				Msg("Issue unmarshalling")
 			return nil, err
 		}
 
@@ -156,6 +205,7 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 		})
 	}
 
+	logger.Debug().Interface("events", events).Msg("What are the events")
 	return events, nil
 }
 
