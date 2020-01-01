@@ -56,6 +56,7 @@ func (c *store) SaveEvents(ctx context.Context, events []*es.Event, version int)
 			Type:          event.Type,
 			Version:       event.Version,
 			Timestamp:     event.Timestamp,
+			Data:          event.Data,
 			RawData:       raw,
 		}
 		items = append(items, item)
