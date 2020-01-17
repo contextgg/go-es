@@ -24,8 +24,14 @@ type EventPublisherFactory func() (es.EventPublisher, error)
 
 // Aggregate creates a new AggregateConfig
 func Aggregate(aggregate es.Aggregate, middleware ...es.CommandHandlerMiddleware) *AggregateConfig {
+	fn := NewAggregateSourcedFunc(aggregate Aggregate) AggregateSourcedFunc
+	return AggregateFunc(fn, middleware...)
+}
+
+// AggregateFunc creates a new AggregateConfig
+func AggregateFunc(fn es.AggregateSourcedFunc, middleware ...es.CommandHandlerMiddleware) *AggregateConfig {
 	return &AggregateConfig{
-		Aggregate:  aggregate,
+		AggregateFunc:  fn,
 		Middleware: middleware,
 	}
 }
@@ -155,10 +161,10 @@ func (b *builder) WireSaga(saga es.Saga, events ...interface{}) {
 }
 
 func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*CommandConfig) {
-	t, name := es.GetTypeName(aggregate.Aggregate)
+	factory := NewAggregateSourcedFactory(aggregate.AggregateFunc)
 
 	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
-		handler := es.NewAggregateHandler(t, name, store, eventBus, b.snapshotMin)
+		handler := es.NewAggregateHandler(factory, store, eventBus, b.snapshotMin)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {

@@ -4,7 +4,7 @@ import "github.com/contextgg/go-es/es"
 
 // AggregateConfig hold information regarding aggregate
 type AggregateConfig struct {
-	Aggregate  es.Aggregate
+	AggregateFunc  es.AggregateSourcedFunc
 	Middleware []es.CommandHandlerMiddleware
 }
 

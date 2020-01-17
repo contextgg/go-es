@@ -33,23 +33,11 @@ var (
 
 // NewAggregateHandler to handle aggregates
 func NewAggregateHandler(
-	aggregateType reflect.Type,
-	aggregateName string,
+	factory AggregateSourcedFactory,
 	dataStore DataStore,
 	eventBus EventBus,
 	minVersionDiff int,
 ) CommandHandler {
-	factory := func(id string) (AggregateSourced, error) {
-		aggregate, ok := reflect.
-			New(aggregateType).
-			Interface().(AggregateSourced)
-		if !ok {
-			return nil, ErrCreatingAggregate
-		}
-		aggregate.Initialize(id, aggregateName)
-		return aggregate, nil
-	}
-
 	return &aggregateHandler{
 		factory:        factory,
 		dataStore:      dataStore,
