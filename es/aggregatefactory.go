@@ -9,7 +9,7 @@ type AggregateFactory func(string) (Aggregate, error)
 type AggregateSourcedFactory func(string) (AggregateSourced, error)
 
 // AggregateSourcedFunc will return a sourced
-type AggregateSourcedFunc func() (AggregateSourced)
+type AggregateSourcedFunc func() AggregateSourced
 
 // NewAggregateSourcedFunc build a func that returns a new aggregate
 func NewAggregateSourcedFunc(aggregate Aggregate) AggregateSourcedFunc {
@@ -20,7 +20,7 @@ func NewAggregateSourcedFunc(aggregate Aggregate) AggregateSourcedFunc {
 			New(aggregateType).
 			Interface().(AggregateSourced)
 		if !ok {
-			return nil, ErrCreatingAggregate
+			panic(ErrCreatingAggregate)
 		}
 		return aggregate
 	}
@@ -47,10 +47,7 @@ func NewAggregateSourcedFactory(fn AggregateSourcedFunc) AggregateSourcedFactory
 	_, aggregateName := GetTypeName(fn())
 
 	return func(id string) (AggregateSourced, error) {
-		aggregate, err := fn()
-		if err != nil {
-			return nil, err
-		}
+		aggregate := fn()
 		aggregate.Initialize(id, aggregateName)
 		return aggregate, nil
 	}

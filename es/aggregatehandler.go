@@ -3,7 +3,6 @@ package es
 import (
 	"context"
 	"errors"
-	"reflect"
 )
 
 // ApplyEventError is when an event could not be applied. It contains the error
