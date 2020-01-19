@@ -6,6 +6,7 @@ import (
 
 	"github.com/contextgg/go-es/es"
 	"github.com/contextgg/go-es/es/basic"
+	"github.com/contextgg/go-es/es/gcp"
 	"github.com/contextgg/go-es/es/mongo"
 	"github.com/contextgg/go-es/es/nats"
 )
@@ -75,6 +76,13 @@ func Mongo(uri, db, username, password string, createIndexes bool) DataStoreFact
 func Nats(uri string, namespace string) EventPublisherFactory {
 	return func() (es.EventPublisher, error) {
 		return nats.NewClient(uri, namespace)
+	}
+}
+
+// GCPPubSub generates a pubsub implementation of EventBus
+func GCPPubSub(projectID string, topicName string) EventPublisherFactory {
+	return func() (es.EventPublisher, error) {
+		return gcp.NewClient(projectID, topicName)
 	}
 }
 

@@ -3,6 +3,7 @@ module github.com/contextgg/go-es
 go 1.13
 
 require (
+	cloud.google.com/go/pubsub v1.1.0
 	github.com/DataDog/zstd v1.4.4 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
