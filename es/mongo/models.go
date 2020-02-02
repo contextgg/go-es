@@ -5,19 +5,27 @@ import (
 	"time"
 )
 
-// AggregateDB defines an aggregate to ensure we don't have race conditions
-type AggregateDB struct {
-	AggregateID   string `bson:"aggregate_id"`
-	AggregateType string `bson:"aggregate_type"`
-	Version       int    `bson:"version"`
+// StreamDB defines a stream to ensure we don't have race conditions
+type StreamDB struct {
+	ID      string `bson:"id"`
+	Type    string `bson:"type"`
+	Version int    `bson:"version"`
 }
 
-//EventDB defines the structure of the events to be stored
+// EventDB defines the structure of the events to be stored
 type EventDB struct {
-	AggregateID   string         `bson:"aggregate_id"`
-	AggregateType string         `bson:"aggregate_type"`
-	Type          string         `bson:"event_type"`
-	Version       int            `bson:"version"`
-	Timestamp     time.Time      `bson:"timestamp"`
-	Data          *bson.RawValue `bson:"data,omitempty"`
+	StreamID  string                 `bson:"streamid"`
+	Version   int                    `bson:"version"`
+	Type      string                 `bson:"type"`
+	Timestamp time.Time              `bson:"timestamp"`
+	Data      *bson.RawValue         `bson:"data,omitempty"`
+	Metadata  map[string]interface{} `bson:"metadata,omitempty"`
+}
+
+// SnapshotDB defines the structure of the snapshot
+type SnapshotDB struct {
+	StreamID string      `bson:"streamid"`
+	Version  int         `bson:"version"`
+	Data     interface{} `bson:"data,omitempty"`
+	Revision int         `bson:"revision"`
 }

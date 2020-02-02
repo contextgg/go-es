@@ -89,10 +89,10 @@ func (h *aggregateHandler) HandleCommand(ctx context.Context, cmd Command) error
 	}
 
 	originalVersion := aggregate.GetVersion()
-	aggregateType := aggregate.GetTypeName()
+	// aggregateType := aggregate.GetTypeName()
 
 	// load up the events from the DB.
-	originalEvents, err := h.dataStore.LoadEvents(ctx, id, aggregateType, originalVersion)
+	originalEvents, err := h.dataStore.LoadEvents(ctx, id, originalVersion)
 	if err != nil {
 		return err
 	}

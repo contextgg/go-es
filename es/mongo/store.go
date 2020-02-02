@@ -141,19 +141,17 @@ func (c *store) SaveEvents(ctx context.Context, events []*es.Event, version int)
 }
 
 // Load the events from the data store
-func (c *store) LoadEvents(ctx context.Context, id string, typeName string, fromVersion int) ([]*es.Event, error) {
+func (c *store) LoadEvents(ctx context.Context, id string, fromVersion int) ([]*es.Event, error) {
 	logger := log.
 		With().
-		Str("aggregateID", id).
-		Str("aggregateType", typeName).
+		Str("streamid", id).
 		Int("fromVersion", fromVersion).
 		Logger()
 
 	events := []*es.Event{}
 	query := bson.M{
-		"aggregate_id":   id,
-		"aggregate_type": typeName,
-		"version":        bson.M{"$gt": fromVersion},
+		"streamid": id,
+		"version":  bson.M{"$gt": fromVersion},
 	}
 	cur, err := c.db.
 		Collection(EventsCollection).
@@ -196,12 +194,12 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 		}
 
 		events = append(events, &es.Event{
-			Type:          item.Type,
-			Timestamp:     item.Timestamp,
-			AggregateID:   item.AggregateID,
-			AggregateType: item.AggregateType,
-			Version:       item.Version,
-			Data:          data,
+			StreamID:  item.StreamID,
+			Version:   item.Version,
+			Type:      item.Type,
+			Data:      data,
+			Metadata:  item.Metadata,
+			Timestamp: item.Timestamp,
 		})
 	}
 
