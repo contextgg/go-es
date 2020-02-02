@@ -13,10 +13,12 @@ import (
 )
 
 const (
-	// AggregatesCollection for storing information regarding aggregates
-	AggregatesCollection = "aggregates"
+	// StreamsCollection for storing information regarding aggregates
+	StreamsCollection = "streams"
 	// EventsCollection for storing events
 	EventsCollection = "events"
+	// SnapshotsCollection for storing snapshots
+	SnapshotsCollection = "snapshots"
 )
 
 // Create will setup a database
@@ -68,36 +70,53 @@ func Create(uri, db, username, password string, createIndexes bool) (*mongo.Data
 			CreateIndexes().
 			SetMaxTime(10 * time.Second)
 
-		aggregatesIndex := mongo.IndexModel{
+		streamsIndex := mongo.IndexModel{
 			Keys: bson.M{
-				"aggregate_type": 1,
-				"aggregate_id":   1,
+				"id":   1,
+				"type": 1,
 			},
 			Options: options.
 				Index().
 				SetUnique(true).
-				SetName("aggreates.id.type"),
+				SetName("streams.id.type"),
 		}
+
 		eventsIndex := mongo.IndexModel{
 			Keys: bson.M{
-				"aggregate_type": 1,
-				"aggregate_id":   1,
-				"version":        1,
+				"streamid": 1,
+				"type":     1,
+				"version":  1,
 			},
 			Options: options.
 				Index().
 				SetUnique(true).
-				SetName("events.id.type.version"),
+				SetName("events.streamid.type.version"),
+		}
+
+		snapshotsIndex := mongo.IndexModel{
+			Keys: bson.M{
+				"streamid": 1,
+				"version":  1,
+				"revision": 1,
+			},
+			Options: options.
+				Index().
+				SetUnique(true).
+				SetName("snapshots.streamid.version.revision"),
 		}
 
 		database.
-			Collection(AggregatesCollection).
+			Collection(StreamsCollection).
 			Indexes().
-			CreateOne(ctx, aggregatesIndex, indexOpts)
+			CreateOne(ctx, streamsIndex, indexOpts)
 		database.
 			Collection(EventsCollection).
 			Indexes().
 			CreateOne(ctx, eventsIndex, indexOpts)
+		database.
+			Collection(SnapshotsCollection).
+			Indexes().
+			CreateOne(ctx, snapshotsIndex, indexOpts)
 
 		log.Debug().
 			Msg("Indexes may have been created successfully")

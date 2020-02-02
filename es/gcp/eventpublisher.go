@@ -84,8 +84,7 @@ func (c *Client) PublishEvent(ctx context.Context, event *es.Event) error {
 		Debug().
 		Str("topic_id", c.topic.ID()).
 		Str("event_type", event.Type).
-		Str("event_aggregate_id", event.AggregateID).
-		Str("event_aggregate_type", event.AggregateType).
+		Str("event_aggregate_id", event.StreamID).
 		Msg("Event Published via GCP pub/sub")
 	return nil
 }

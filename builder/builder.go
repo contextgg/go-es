@@ -126,11 +126,13 @@ func NewClientBuilder(storeFactory DataStoreFactory) (ClientBuilder, error) {
 }
 
 type builder struct {
-	eventRegistry es.EventRegistry
-	dataStore     es.DataStore
-	eventBus      es.EventBus
-	eventHandler  *es.LocalEventHandler
-	snapshotMin   int
+	eventRegistry    es.EventRegistry
+	dataStore        es.DataStore
+	eventBus         es.EventBus
+	eventHandler     *es.LocalEventHandler
+	snapshotMin      int
+	snapshotRevision int
+	projectAggregate bool
 
 	eventPublisherFactories []EventPublisherFactory
 	eventHandlerFactories   []EventHandlerFactory
@@ -172,7 +174,7 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 	factory := es.NewAggregateSourcedFactory(aggregate.AggregateFunc)
 
 	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
-		handler := es.NewAggregateHandler(factory, store, eventBus, b.snapshotMin)
+		handler := es.NewAggregateHandler(factory, store, eventBus, b.snapshotMin, b.snapshotRevision, b.projectAggregate)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {

@@ -42,23 +42,17 @@ type memoryStore struct {
 	allAggregates map[string]es.Aggregate
 }
 
-func (b *memoryStore) SaveEvents(ctx context.Context, events []*es.Event, version int) error {
-	if len(events) < 1 {
-		return nil
-	}
-
-	id := events[0].AggregateID
-	typeName := events[0].AggregateType
-
-	index := fmt.Sprintf("%s.%s", typeName, id)
-
-	// get the existing stuff!.
-	existing := b.allEvents[index]
-	b.allEvents[index] = append(existing, events...)
+func (b *memoryStore) LoadStream(context.Context, string) (*es.Stream, error) {
+	return nil, nil
+}
+func (b *memoryStore) SaveStream(context.Context, *es.Stream) error {
 	return nil
 }
+func (b *memoryStore) LoadMissingEvents(ctx context.Context, agg es.AggregateSourced) ([]*es.Event, error) {
+	id := agg.GetID()
+	typeName := agg.GetTypeName()
+	fromVersion := agg.GetVersion()
 
-func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromVersion int) ([]*es.Event, error) {
 	index := fmt.Sprintf("%s.%s", typeName, id)
 
 	existing := b.allEvents[index]
@@ -78,7 +72,27 @@ func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromV
 
 	return filteredEvents, nil
 }
+func (b *memoryStore) SaveEvents(ctx context.Context, aggregate es.AggregateSourced, events []*es.Event) error {
+	if len(events) < 1 {
+		return nil
+	}
 
+	id := aggregate.GetID()
+	typeName := aggregate.GetTypeName()
+
+	index := fmt.Sprintf("%s.%s", typeName, id)
+
+	// get the existing stuff!.
+	existing := b.allEvents[index]
+	b.allEvents[index] = append(existing, events...)
+	return nil
+}
+func (b *memoryStore) LoadSnapshot(ctx context.Context, revision int, agg es.AggregateSourced) (*es.Snapshot, error) {
+	return nil, nil
+}
+func (b *memoryStore) SaveSnapshot(ctx context.Context, revision int, agg es.AggregateSourced) (*es.Snapshot, error) {
+	return nil, nil
+}
 func (b *memoryStore) SaveAggregate(ctx context.Context, agg es.Aggregate) error {
 	if agg == nil {
 		return ErrAggregateNil

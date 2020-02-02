@@ -28,17 +28,7 @@ func (a *BaseAggregateSourced) GetTypeName() string {
 // StoreEvent will add the event to a list which will be persisted later
 func (a *BaseAggregateSourced) StoreEvent(data interface{}) {
 	v := a.GetVersion() + len(a.events) + 1
-	timestamp := GetTimestamp()
-	_, typeName := GetTypeName(data)
-	e := &Event{
-		Type:          typeName,
-		Timestamp:     timestamp,
-		AggregateID:   a.ID,
-		AggregateType: a.TypeName,
-		Version:       v,
-		Data:          data,
-	}
-
+	e := NewEventForAggregate(a.ID, v, data)
 	a.events = append(a.events, e)
 }
 

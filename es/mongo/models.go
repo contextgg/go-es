@@ -14,18 +14,17 @@ type StreamDB struct {
 
 // EventDB defines the structure of the events to be stored
 type EventDB struct {
-	StreamID  string                 `bson:"streamid"`
-	Version   int                    `bson:"version"`
-	Type      string                 `bson:"type"`
-	Timestamp time.Time              `bson:"timestamp"`
-	Data      *bson.RawValue         `bson:"data,omitempty"`
-	Metadata  map[string]interface{} `bson:"metadata,omitempty"`
+	StreamID  string         `bson:"streamid"`
+	Version   int            `bson:"version"`
+	Type      string         `bson:"type"`
+	Timestamp time.Time      `bson:"timestamp"`
+	Data      *bson.RawValue `bson:"data,omitempty"`
 }
 
 // SnapshotDB defines the structure of the snapshot
 type SnapshotDB struct {
-	StreamID string      `bson:"streamid"`
-	Version  int         `bson:"version"`
-	Data     interface{} `bson:"data,omitempty"`
-	Revision int         `bson:"revision"`
+	StreamID string         `bson:"streamid"`
+	Version  int            `bson:"version"`
+	Revision int            `bson:"revision"`
+	Data     *bson.RawValue `bson:"data,omitempty"`
 }

@@ -106,8 +106,7 @@ func (c *Client) PublishEvent(ctx context.Context, event *es.Event) error {
 		Debug().
 		Str("subj", subj).
 		Str("event_type", event.Type).
-		Str("event_aggregate_id", event.AggregateID).
-		Str("event_aggregate_type", event.AggregateType).
+		Str("event_aggregate_id", event.StreamID).
 		Msg("Event Published via Nats")
 	return nil
 }

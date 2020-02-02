@@ -10,18 +10,34 @@ import (
 type TestDataStore struct {
 }
 
-func (d *TestDataStore) SaveEvents(context.Context, []*Event, int) error {
+func (d *TestDataStore) LoadStream(context.Context, string) (*Stream, error) {
+	return nil, nil
+}
+func (d *TestDataStore) SaveStream(context.Context, *Stream) error {
 	return nil
 }
-func (d *TestDataStore) LoadEvents(context.Context, string, string, int) ([]*Event, error) {
+
+func (d *TestDataStore) LoadMissingEvents(context.Context, AggregateSourced) ([]*Event, error) {
 	return nil, nil
+}
+func (d *TestDataStore) SaveEvents(context.Context, AggregateSourced, []*Event) error {
+	return nil
+}
+
+func (d *TestDataStore) LoadSnapshot(context.Context, int, AggregateSourced) (*Snapshot, error) {
+	return nil, nil
+}
+func (d *TestDataStore) SaveSnapshot(context.Context, int, AggregateSourced) (*Snapshot, error) {
+	return nil, nil
+}
+
+func (d *TestDataStore) LoadAggregate(context.Context, Aggregate) error {
+	return nil
 }
 func (d *TestDataStore) SaveAggregate(context.Context, Aggregate) error {
 	return nil
 }
-func (d *TestDataStore) LoadAggregate(context.Context, Aggregate) error {
-	return nil
-}
+
 func (d *TestDataStore) Close() error {
 	return nil
 }
@@ -35,7 +51,8 @@ func (t *TestBus) HandleEvent(context.Context, *Event) error {
 	return nil
 }
 func (t *TestBus) AddPublisher(EventPublisher) {}
-func (t *TestBus) Close()                      {}
+
+func (t *TestBus) Close() {}
 
 // TestAggregate for testing our save
 type TestAggregate struct {
