@@ -16,10 +16,10 @@ func (d *TestDataStore) SaveEvents(context.Context, []*Event, int) error {
 func (d *TestDataStore) LoadEvents(context.Context, string, string, int) ([]*Event, error) {
 	return nil, nil
 }
-func (d *TestDataStore) SaveAggregate(context.Context, Aggregate) error {
+func (d *TestDataStore) SaveAggregate(context.Context, string, Aggregate) error {
 	return nil
 }
-func (d *TestDataStore) LoadAggregate(context.Context, Aggregate) error {
+func (d *TestDataStore) LoadAggregate(context.Context, string, Aggregate) error {
 	return nil
 }
 func (d *TestDataStore) Close() error {
@@ -61,7 +61,7 @@ func TestSavingAggregate(t *testing.T) {
 
 	dataStore := &TestDataStore{}
 	bus := &TestBus{}
-	store := NewAggregateStore(nil, dataStore, bus)
+	store := NewAggregateStore("1", nil, dataStore, bus)
 
 	aggregate := &TestAggregate{}
 

@@ -93,6 +93,7 @@ type ClientBuilder interface {
 	RegisterEvents(events ...*EventConfig)
 	AddPublisher(publisher EventPublisherFactory)
 	SetDefaultSnapshotMin(min int)
+	SetDefaultRevision(rev string)
 	SetDebug()
 
 	WireSaga(saga es.Saga, events ...interface{})
@@ -131,6 +132,7 @@ type builder struct {
 	eventBus      es.EventBus
 	eventHandler  *es.LocalEventHandler
 	snapshotMin   int
+	revision      string
 
 	eventPublisherFactories []EventPublisherFactory
 	eventHandlerFactories   []EventHandlerFactory
@@ -155,6 +157,10 @@ func (b *builder) SetDefaultSnapshotMin(min int) {
 	b.snapshotMin = min
 }
 
+func (b *builder) SetDefaultRevision(rev string) {
+	b.revision = rev
+}
+
 func (b *builder) SetDebug() {
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
@@ -172,7 +178,7 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 	factory := es.NewAggregateSourcedFactory(aggregate.AggregateFunc)
 
 	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
-		handler := es.NewAggregateHandler(factory, store, eventBus, b.snapshotMin)
+		handler := es.NewAggregateHandler(factory, store, eventBus, b.revision, b.snapshotMin)
 		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {
@@ -205,7 +211,7 @@ func (b *builder) WireCommandHandler(handler es.CommandHandler, commands ...*Com
 
 func (b *builder) MakeAggregateStore(aggregate es.Aggregate) *es.AggregateStore {
 	factory := es.NewAggregateFactory(aggregate)
-	return es.NewAggregateStore(factory, b.dataStore, b.eventBus)
+	return es.NewAggregateStore(b.revision, factory, b.dataStore, b.eventBus)
 }
 
 func (b *builder) Build() (*Client, error) {

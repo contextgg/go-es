@@ -17,7 +17,7 @@ type LoggedOut struct{}
 
 // Auth aggregate
 type Auth struct {
-	es.BaseAggregate
+	es.BaseAggregateSourced
 
 	Username string `bson:"username"`
 	LoggedIn bool   `bson:"logged_in"`
@@ -64,8 +64,11 @@ func TestStuff(t *testing.T) {
 	// store := builder.Mongo("mongodb://localhost:27017", "test", 0)
 	// eventbus := builder.Nats("nats://localhost:4222", "identity-auth")
 
-	b := builder.NewClientBuilder()
-	b.RegisterEvent(
+	// df := builder.LocalStore()
+	df := builder.Mongo("mongodb://localhost:27017", "test", "", "", true)
+	b, _ := builder.NewClientBuilder(df)
+	b.SetDefaultRevision("hello1")
+	b.RegisterEvents(
 		builder.Event(&LoggedIn{}, false),
 		builder.Event(&LoggedOut{}, false),
 	)
@@ -74,11 +77,8 @@ func TestStuff(t *testing.T) {
 		builder.Command(&Login{}),
 		builder.Command(&Logout{}),
 	)
-	b.SetEventStore(
-		builder.LocalStore(),
-	)
 	// b.SetEventStore(
-	// 	builder.Mongo("mongodb://localhost:27017", "test", 0),
+	// 	,
 	// )
 	// b.AddPublisher(
 	// 	builder.Nats("nats://localhost:4222", "test"),

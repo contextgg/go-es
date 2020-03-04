@@ -210,11 +210,11 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 }
 
 // Save the events ensuring the current version
-func (c *store) SaveAggregate(ctx context.Context, aggregate es.Aggregate) error {
+func (c *store) SaveAggregate(ctx context.Context, revision string, aggregate es.Aggregate) error {
 	id := aggregate.GetID()
 	typeName := aggregate.GetTypeName()
 
-	selector := bson.M{"id": id}
+	selector := bson.M{"id": id, "revision": revision}
 	update := bson.M{"$set": aggregate}
 
 	opts := options.
@@ -229,12 +229,13 @@ func (c *store) SaveAggregate(ctx context.Context, aggregate es.Aggregate) error
 }
 
 // Load the events from the data store
-func (c *store) LoadAggregate(ctx context.Context, aggregate es.Aggregate) error {
+func (c *store) LoadAggregate(ctx context.Context, revision string, aggregate es.Aggregate) error {
 	id := aggregate.GetID()
 	typeName := aggregate.GetTypeName()
 
 	query := bson.M{
-		"id": id,
+		"id":       id,
+		"revision": revision,
 	}
 	if err := c.db.
 		Collection(typeName).

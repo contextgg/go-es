@@ -79,21 +79,21 @@ func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromV
 	return filteredEvents, nil
 }
 
-func (b *memoryStore) SaveAggregate(ctx context.Context, agg es.Aggregate) error {
+func (b *memoryStore) SaveAggregate(ctx context.Context, revision string, agg es.Aggregate) error {
 	if agg == nil {
 		return ErrAggregateNil
 	}
 
-	id := agg.GetID()
+	id := agg.GetID() + "_" + revision
 	b.allAggregates[id] = agg
 	return nil
 }
-func (b *memoryStore) LoadAggregate(ctx context.Context, agg es.Aggregate) error {
+func (b *memoryStore) LoadAggregate(ctx context.Context, revision string, agg es.Aggregate) error {
 	if agg == nil {
 		return ErrAggregateNil
 	}
 
-	id := agg.GetID()
+	id := agg.GetID() + "_" + revision
 	if nagg, ok := b.allAggregates[id]; ok {
 		set(agg, nagg)
 	}

@@ -8,7 +8,7 @@ import (
 type DataStore interface {
 	SaveEvents(context.Context, []*Event, int) error
 	LoadEvents(context.Context, string, string, int) ([]*Event, error)
-	SaveAggregate(context.Context, Aggregate) error
-	LoadAggregate(context.Context, Aggregate) error
+	SaveAggregate(context.Context, string, Aggregate) error
+	LoadAggregate(context.Context, string, Aggregate) error
 	Close() error
 }
