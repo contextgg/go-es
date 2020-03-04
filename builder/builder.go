@@ -94,6 +94,7 @@ type ClientBuilder interface {
 	AddPublisher(publisher EventPublisherFactory)
 	SetDefaultSnapshotMin(min int)
 	SetDefaultRevision(rev string)
+	SetDefaultProject(project bool)
 	SetDebug()
 
 	WireSaga(saga es.Saga, events ...interface{})
