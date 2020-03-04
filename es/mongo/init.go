@@ -17,6 +17,8 @@ const (
 	AggregatesCollection = "aggregates"
 	// EventsCollection for storing events
 	EventsCollection = "events"
+	// SnapshotsCollection for storing snapshot
+	SnapshotsCollection = "snapshots"
 )
 
 // Create will setup a database
@@ -89,6 +91,17 @@ func Create(uri, db, username, password string, createIndexes bool) (*mongo.Data
 				SetUnique(true).
 				SetName("events.id.type.version"),
 		}
+		snapshotsIndex := mongo.IndexModel{
+			Keys: bson.M{
+				"aggregate_type": 1,
+				"aggregate_id":   1,
+				"revision":       1,
+			},
+			Options: options.
+				Index().
+				SetUnique(true).
+				SetName("snapshots.id.type.revision"),
+		}
 
 		database.
 			Collection(AggregatesCollection).
@@ -98,6 +111,10 @@ func Create(uri, db, username, password string, createIndexes bool) (*mongo.Data
 			Collection(EventsCollection).
 			Indexes().
 			CreateOne(ctx, eventsIndex, indexOpts)
+		database.
+			Collection(SnapshotsCollection).
+			Indexes().
+			CreateOne(ctx, snapshotsIndex, indexOpts)
 
 		log.Debug().
 			Msg("Indexes may have been created successfully")

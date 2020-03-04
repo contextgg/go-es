@@ -26,7 +26,7 @@ func TestLoadAggregate(t *testing.T) {
 	}
 
 	factory := es.NewAggregateFactory(&SmashggEvent{})
-	aggregateStore := es.NewAggregateStore("1", factory, store, nil)
+	aggregateStore := es.NewAggregateStore(factory, store, nil)
 	aggregate, err := aggregateStore.LoadAggregate(context.TODO(), "384824")
 	if err != nil {
 		t.Error(err)

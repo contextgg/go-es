@@ -27,6 +27,7 @@ func AddAggregate(agg es.Aggregate) Option {
 func NewMemoryStore(opts ...Option) es.DataStore {
 	ms := &memoryStore{
 		allEvents:     make(map[string][]*es.Event),
+		allSnapshots:  make(map[string]es.Aggregate),
 		allAggregates: make(map[string]es.Aggregate),
 	}
 
@@ -39,6 +40,7 @@ func NewMemoryStore(opts ...Option) es.DataStore {
 
 type memoryStore struct {
 	allEvents     map[string][]*es.Event
+	allSnapshots  map[string]es.Aggregate
 	allAggregates map[string]es.Aggregate
 }
 
@@ -79,21 +81,41 @@ func (b *memoryStore) LoadEvents(ctx context.Context, id, typeName string, fromV
 	return filteredEvents, nil
 }
 
-func (b *memoryStore) SaveAggregate(ctx context.Context, revision string, agg es.Aggregate) error {
+func (b *memoryStore) SaveSnapshot(ctx context.Context, revision string, agg es.Aggregate) error {
 	if agg == nil {
 		return ErrAggregateNil
 	}
 
 	id := agg.GetID() + "_" + revision
+	b.allSnapshots[id] = agg
+	return nil
+}
+func (b *memoryStore) LoadSnapshot(ctx context.Context, revision string, agg es.Aggregate) error {
+	if agg == nil {
+		return ErrAggregateNil
+	}
+
+	id := agg.GetID() + "_" + revision
+	if nagg, ok := b.allSnapshots[id]; ok {
+		set(agg, nagg)
+	}
+	return nil
+}
+func (b *memoryStore) SaveAggregate(ctx context.Context, agg es.Aggregate) error {
+	if agg == nil {
+		return ErrAggregateNil
+	}
+
+	id := agg.GetID()
 	b.allAggregates[id] = agg
 	return nil
 }
-func (b *memoryStore) LoadAggregate(ctx context.Context, revision string, agg es.Aggregate) error {
+func (b *memoryStore) LoadAggregate(ctx context.Context, agg es.Aggregate) error {
 	if agg == nil {
 		return ErrAggregateNil
 	}
 
-	id := agg.GetID() + "_" + revision
+	id := agg.GetID()
 	if nagg, ok := b.allAggregates[id]; ok {
 		set(agg, nagg)
 	}

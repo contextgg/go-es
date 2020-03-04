@@ -37,6 +37,7 @@ func NewAggregateHandler(
 	eventBus EventBus,
 	revision string,
 	minVersionDiff int,
+	project bool,
 ) CommandHandler {
 	return &aggregateHandler{
 		factory:        factory,
@@ -44,6 +45,7 @@ func NewAggregateHandler(
 		eventBus:       eventBus,
 		revision:       revision,
 		minVersionDiff: minVersionDiff,
+		project:        project,
 	}
 }
 
@@ -52,6 +54,7 @@ type aggregateHandler struct {
 	dataStore      DataStore
 	eventBus       EventBus
 	revision       string
+	project        bool
 	minVersionDiff int
 }
 
@@ -86,7 +89,7 @@ func (h *aggregateHandler) HandleCommand(ctx context.Context, cmd Command) error
 
 	// load up the aggregate
 	if h.minVersionDiff >= 0 {
-		if err := h.dataStore.LoadAggregate(ctx, h.revision, aggregate); err != nil {
+		if err := h.dataStore.LoadSnapshot(ctx, h.revision, aggregate); err != nil {
 			return err
 		}
 	}
@@ -128,7 +131,13 @@ func (h *aggregateHandler) HandleCommand(ctx context.Context, cmd Command) error
 		return ErrWrongVersion
 	}
 	if diff > h.minVersionDiff {
-		if err := h.dataStore.SaveAggregate(ctx, h.revision, aggregate); err != nil {
+		if err := h.dataStore.SaveSnapshot(ctx, h.revision, aggregate); err != nil {
+			return err
+		}
+	}
+
+	if h.project {
+		if err := h.dataStore.SaveAggregate(ctx, aggregate); err != nil {
 			return err
 		}
 	}

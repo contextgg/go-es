@@ -7,9 +7,8 @@ import (
 )
 
 // NewAggregateStore creates a new store for a specific aggregate
-func NewAggregateStore(revision string, factory AggregateFactory, dataStore DataStore, bus EventBus) *AggregateStore {
+func NewAggregateStore(factory AggregateFactory, dataStore DataStore, bus EventBus) *AggregateStore {
 	return &AggregateStore{
-		revision:  revision,
 		factory:   factory,
 		dataStore: dataStore,
 		bus:       bus,
@@ -18,7 +17,6 @@ func NewAggregateStore(revision string, factory AggregateFactory, dataStore Data
 
 // AggregateStore for loading and saving to the datastore
 type AggregateStore struct {
-	revision  string
 	factory   AggregateFactory
 	dataStore DataStore
 	bus       EventBus
@@ -35,7 +33,7 @@ func (a *AggregateStore) LoadAggregate(ctx context.Context, id string) (Aggregat
 			Msg("Could not create Aggregate with factory")
 		return nil, err
 	}
-	if err := a.dataStore.LoadAggregate(ctx, a.revision, aggregate); err != nil {
+	if err := a.dataStore.LoadAggregate(ctx, aggregate); err != nil {
 		log.
 			Error().
 			Err(err).
@@ -60,7 +58,7 @@ func (a *AggregateStore) SaveAggregate(ctx context.Context, aggregate Aggregate)
 		Str("type_name", aggregate.GetTypeName()).
 		Logger()
 
-	if err := a.dataStore.SaveAggregate(ctx, a.revision, aggregate); err != nil {
+	if err := a.dataStore.SaveAggregate(ctx, aggregate); err != nil {
 		sublogger.
 			Error().
 			Err(err).

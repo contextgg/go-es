@@ -210,11 +210,55 @@ func (c *store) LoadEvents(ctx context.Context, id string, typeName string, from
 }
 
 // Save the events ensuring the current version
-func (c *store) SaveAggregate(ctx context.Context, revision string, aggregate es.Aggregate) error {
+func (c *store) SaveSnapshot(ctx context.Context, revision string, aggregate es.Aggregate) error {
+	aggregateID := aggregate.GetID()
+	aggregateType := aggregate.GetTypeName()
+
+	filter := bson.M{
+		"aggregate_id":   aggregateID,
+		"aggregate_type": aggregateType,
+		"revision":       revision,
+	}
+	update := bson.M{"$set": aggregate}
+
+	opts := options.
+		Update().
+		SetUpsert(true)
+
+	_, err := c.db.
+		Collection(SnapshotsCollection).
+		UpdateOne(ctx, filter, update, opts)
+
+	return err
+}
+
+// Load the events from the data store
+func (c *store) LoadSnapshot(ctx context.Context, revision string, aggregate es.Aggregate) error {
+	aggregateID := aggregate.GetID()
+	aggregateType := aggregate.GetTypeName()
+
+	filter := bson.M{
+		"aggregate_id":   aggregateID,
+		"aggregate_type": aggregateType,
+		"revision":       revision,
+	}
+
+	if err := c.db.
+		Collection(SnapshotsCollection).
+		FindOne(ctx, filter).
+		Decode(aggregate); err != nil && err != mongo.ErrNoDocuments {
+		return err
+	}
+
+	return nil
+}
+
+// Save the events ensuring the current version
+func (c *store) SaveAggregate(ctx context.Context, aggregate es.Aggregate) error {
 	id := aggregate.GetID()
 	typeName := aggregate.GetTypeName()
 
-	selector := bson.M{"id": id, "revision": revision}
+	selector := bson.M{"id": id}
 	update := bson.M{"$set": aggregate}
 
 	opts := options.
@@ -229,13 +273,12 @@ func (c *store) SaveAggregate(ctx context.Context, revision string, aggregate es
 }
 
 // Load the events from the data store
-func (c *store) LoadAggregate(ctx context.Context, revision string, aggregate es.Aggregate) error {
+func (c *store) LoadAggregate(ctx context.Context, aggregate es.Aggregate) error {
 	id := aggregate.GetID()
 	typeName := aggregate.GetTypeName()
 
 	query := bson.M{
-		"id":       id,
-		"revision": revision,
+		"id": id,
 	}
 	if err := c.db.
 		Collection(typeName).
