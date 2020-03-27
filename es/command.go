@@ -24,3 +24,8 @@ func (c *BaseCommand) SetID(id string) {
 type SettableID interface {
 	SetID(string)
 }
+
+// ReplayCommand a command that load and reply events ontop of an aggregate.
+type ReplayCommand struct {
+	BaseCommand
+}

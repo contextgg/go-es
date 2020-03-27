@@ -107,8 +107,13 @@ func (h *aggregateHandler) HandleCommand(ctx context.Context, cmd Command) error
 	}
 
 	// handle the command
-	if err := aggregate.HandleCommand(ctx, cmd); err != nil {
-		return err
+	switch cmd.(type) {
+	case *ReplayCommand:
+		break
+	default:
+		if err := aggregate.HandleCommand(ctx, cmd); err != nil {
+			return err
+		}
 	}
 
 	// now save it!.

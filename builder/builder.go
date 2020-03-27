@@ -185,14 +185,17 @@ func (b *builder) WireAggregate(aggregate *AggregateConfig, commands ...*Command
 
 	var fn = func(commandBus es.CommandBus, store es.DataStore, eventBus es.EventBus) error {
 		handler := es.NewAggregateHandler(factory, store, eventBus, b.revision, b.snapshotMin, b.project)
-		handler = es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
+		handlerMiddleware := es.UseCommandHandlerMiddleware(handler, aggregate.Middleware...)
 
 		for _, cmd := range commands {
-			h := es.UseCommandHandlerMiddleware(handler, cmd.Middleware...)
+			h := es.UseCommandHandlerMiddleware(handlerMiddleware, cmd.Middleware...)
 
 			if err := commandBus.SetHandler(h, cmd.Command); err != nil {
 				return err
 			}
+		}
+		if err := commandBus.SetHandler(handler, &es.ReplayCommand{}); err != nil {
+			return err
 		}
 		return nil
 	}
